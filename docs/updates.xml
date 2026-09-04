@@ -2,7 +2,7 @@
 <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
   <app appid='ijnoclodmapkiihcfgjiadhibojookkg'>
     <updatecheck
-      codebase='https://github.com/samurayski/clickfix-guard/releases/download/v0.1.0/clickfix-guard-0.1.0.crx'
-      version='0.1.0' />
+      codebase='https://github.com/samurayski/clickfix-guard/releases/download/v0.2.0/clickfix-guard-0.2.0.crx'
+      version='0.2.0' />
   </app>
 </gupdate>
