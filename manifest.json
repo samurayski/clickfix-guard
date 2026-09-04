@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "version": "0.1.0",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start",
+      "js": [
+        "src/detection/indicators.js",
+        "src/detection/default-allowlist.js",
+        "src/content/content.js"
+      ]
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "src/content/injected.js"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/idle/icon16.png",
+      "32": "icons/idle/icon32.png",
+      "48": "icons/idle/icon48.png",
+      "128": "icons/idle/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/idle/icon16.png",
+    "32": "icons/idle/icon32.png",
+    "48": "icons/idle/icon48.png",
+    "128": "icons/idle/icon128.png"
+  }
+}
