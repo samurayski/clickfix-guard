@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Seviye 1 – Statik Metin Testi</title>
+<style>
+  body { font: 15px/1.6 -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; }
+  code { background: #f2f2f2; padding: 10px; display: block; border-radius: 6px; overflow-x: auto; }
+  .banner { background: #fff3cd; border: 1px solid #ffe08a; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    Bu bir <strong>ClickFix Guard test sayfasıdır</strong>. JS/clipboard trick yok — sadece
+    düz metin taraması test edilir (Win+R, "Terminal aç", <code>powershell</code> gibi ifadeler
+    sayfa yüklenir yüklenmez DOM'da mevcut).
+  </div>
+
+  <h2>Doğrulama Adımları</h2>
+  <p>Devam etmek için lütfen aşağıdaki adımları izleyin:</p>
+  <ol>
+    <li><strong>Win+R</strong> tuşlarına basarak Çalıştır penceresini açın.</li>
+    <li>Aşağıdaki kodu kopyalayıp yapıştırın.</li>
+    <li>Enter'a basın.</li>
+  </ol>
+
+  <p>Kod (zararsız — base64 içinde sadece "hello world" metnini çözüp ekrana yazar):</p>
+  <code>powershell -NoProfile -Command "[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('aGVsbG8gd29ybGQ='))"</code>
+
+  <p style="margin-top:20px; color:#666; font-size:13px;">
+    Not: Bu komut zararsızdır, sadece <code>hello world</code> yazdırır. Gerçek bir ClickFix
+    saldırısında bu adımda kötü amaçlı bir indirici/komut çalıştırılır.
+  </p>
+</body>
+</html>

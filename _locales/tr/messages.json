@@ -1,0 +1,30 @@
+{
+  "extName": {
+    "message": "ClickFix Guard",
+    "description": "Eklenti adı."
+  },
+  "extDescription": {
+    "message": "ClickFix tarzı sosyal mühendislik saldırılarını (sahte CAPTCHA + Win+R/Terminal yapıştırma tuzağı) tespit eder ve kullanıcıyı komutu çalıştırmadan önce uyarır.",
+    "description": "Tarayıcıda görünen eklenti açıklaması."
+  },
+  "bannerWarning": {
+    "message": "Uyarı: Bu sayfa ClickFix tarzı bir saldırı belirtisi gösteriyor. Bir doğrulama ekranı üzerinden kod kopyaladıysanız hiçbir yere yapıştırmayın ve bilgi güvenliği ekibinize bildirin.",
+    "description": "Skor eşiği aşıldığında gösterilen banner metni."
+  },
+  "bannerDismiss": {
+    "message": "Uyarıyı kapat",
+    "description": "Banner kapatma düğmesinin erişilebilirlik etiketi."
+  },
+  "popupTitle": {
+    "message": "ClickFix Guard — son tespitler",
+    "description": "Araç çubuğu popup başlığı."
+  },
+  "popupEmpty": {
+    "message": "Henüz tespit yok.",
+    "description": "Log boşken popup'ta gösterilir."
+  },
+  "popupScore": {
+    "message": "skor",
+    "description": "Popup log satırında skorun önündeki etiket."
+  }
+}

