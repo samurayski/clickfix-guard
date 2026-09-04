@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "version": "0.1.0",
+  "update_url": "https://samurayski.github.io/clickfix-guard/updates.xml",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "permissions": [
