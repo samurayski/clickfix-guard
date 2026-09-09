@@ -59,7 +59,7 @@ The clipboard signal is graded, not binary:
 | Signal | Weight | Fires when |
 |---|---|---|
 | `clipboard` | 6 | The copied text matches a LOLBin/command keyword |
-| `clipboardOpaqueBlob` | 5 | No keyword, but a whitespace-free run of ≥40 base64-alphabet characters — an opaque encoded payload rather than a readable command |
+| `clipboardOpaqueBlob` | 5 | No keyword, but a single whitespace-free *token* of ≥40 base64-alphabet characters containing a digit or mixed case — an opaque encoded payload rather than a readable command |
 | `clipboardAfterVerifyClick` | 4 | No keyword and no blob shape, but written silently within 800 ms of a click (or Enter/Space) on a control that looks like a verification/CAPTCHA widget |
 
 If none of the three match — a documentation site's "copy the install command"
@@ -83,6 +83,24 @@ does not need to change.
 > worse, not better. When you see a false positive, look at which signal fired
 > (the `indicators` list in the popup) and fix the root cause; the threshold is a
 > last resort.
+>
+> **A second one, same signal:** `opaqueBlob` originally stripped *all*
+> whitespace from the clipboard text before checking for a ≥40-character
+> base64-looking run. That's fine for a single pasted blob, but it also means
+> any long plain-English paragraph collapses into one giant letters-only run
+> once its spaces are gone — which fits the base64 alphabet just as well as a
+> real payload does. Copying a translated sentence on `translate.google.com`
+> (or any long-enough prose elsewhere) could trip it with zero relation to an
+> encoded command. `looksLikeOpaqueBlob()` in `injected.js` now judges each
+> whitespace-delimited *token* on its own — a real blob is written as one
+> unbroken token to begin with, prose never is — and additionally requires a
+> digit or mixed case, which every real base64 blob has and a long plain word
+> never does. `translate.google.com` / `*.translate.goog` are deliberately
+> **not** in the default allowlist despite being a common false-positive
+> trigger: Google Translate's proxy domains are a documented ClickFix/phishing
+> hosting vector (a lure page rendered through `translate.goog` inherits a
+> trusted-looking Google domain), so the fix belongs in the detection logic,
+> not in skipping instrumentation on that host.
 
 ## Case study: why the behavioural layer exists
 
