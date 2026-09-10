@@ -5,6 +5,7 @@
 <style>
   body { font: 13px/1.5 -apple-system, Segoe UI, sans-serif; width: 280px; padding: 12px; }
   h4 { margin: 0 0 8px; }
+  h5 { margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .02em; color: #666; }
   .entry { border-top: 1px solid #eee; padding: 6px 0; }
   .entry .url { font-weight: 600; word-break: break-all; }
   .entry .meta { color: #666; font-size: 11px; }
@@ -15,6 +16,10 @@
 <body>
   <h4 id="title"></h4>
   <div id="list" class="empty"></div>
+  <div id="allowlist-section" hidden>
+    <h5 id="allowlist-title"></h5>
+    <div id="allowlist-list"></div>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

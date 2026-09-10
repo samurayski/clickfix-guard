@@ -15,6 +15,20 @@
     "message": "Uyarıyı kapat",
     "description": "Banner kapatma düğmesinin erişilebilirlik etiketi."
   },
+  "bannerAllowlistButton": {
+    "message": "Bu siteye güven",
+    "description": "Banner üzerindeki, siteyi güvenilir listeye ekleyen düğmenin metni."
+  },
+  "bannerAllowlistConfirm": {
+    "message": "$HOST$ adresini kalıcı güvenilir listesine eklemek istediğine emin misin? Bundan sonra ClickFix Guard bu sitede bir daha hiç uyarı göstermeyecek. Sadece bu uyarının yanlış alarm olduğundan eminsen onayla.",
+    "description": "Güvenilir listeye eklemeden önce çıkan onay diyaloğu metni.",
+    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+  },
+  "bannerAllowlistAdded": {
+    "message": "$HOST$ güvenilir listesine eklendi.",
+    "description": "Güvenilir listeye ekleme sonrası banner'da kısa süre gösterilen onay metni.",
+    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+  },
   "popupTitle": {
     "message": "ClickFix Guard — son tespitler",
     "description": "Araç çubuğu popup başlığı."
@@ -26,5 +40,9 @@
   "popupScore": {
     "message": "skor",
     "description": "Popup log satırında skorun önündeki etiket."
+  },
+  "popupAllowlistTitle": {
+    "message": "Manuel olarak güvenilir işaretlenenler",
+    "description": "Popup'ta banner üzerinden eklenen sitelerin listelendiği bölümün başlığı."
   }
 }

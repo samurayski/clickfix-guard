@@ -184,6 +184,32 @@ product-specific hosts are listed.
 Edit the file and repackage for a permanent change, or push an `allowlist` key
 via `chrome.storage.managed` to change it centrally without touching the code.
 
+### Allowlisting from the banner
+
+The warning banner itself has a **"Trust this site"** button, next to the
+dismiss (×) button. Unlike ×, which just hides that one banner, it persists
+the current hostname into `chrome.storage.local`'s `allowlist` — the site
+never triggers the banner again, on any tab, until someone edits the list
+back out.
+
+That is a much bigger action than closing a banner, so it isn't one click:
+
+- A native `confirm()` names the hostname and states the consequence
+  ("ClickFix Guard will never warn on this site again") before anything is
+  written. There's no custom "are you sure" UI to skip past by habit —
+  it's the browser's own blocking dialog.
+- The action is logged to `chrome.storage.local`'s `allowlistLog` (mirroring
+  the `log` a real detection writes) and shown in the popup under **"Manually
+  trusted from the banner"**. An allowlist entry that fired once and got
+  silenced by a click should stay visible somewhere, the same way a
+  detection does — this is what closes that loop for self-service
+  allowlisting instead of only the seed file.
+
+This does not replace reviewing `default-allowlist.js` for a managed
+deployment — it's the escape hatch for the false positives that show up
+after that review, on a machine where nobody is going to edit a JS file and
+repackage the extension over it.
+
 ## Install
 
 ### From source

@@ -56,6 +56,21 @@
         "padding:12px 16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3);"
     );
     el.textContent = chrome.i18n.getMessage("bannerWarning");
+
+    // Lets the user silence a confirmed false positive at the source instead
+    // of just closing the banner (which does nothing for the next reload).
+    // Gated behind a native confirm() — a single misclick here permanently
+    // stops scanning this hostname, so it shouldn't be as easy as the ×.
+    const trust = document.createElement("button");
+    trust.textContent = chrome.i18n.getMessage("bannerAllowlistButton");
+    trust.setAttribute(
+      "style",
+      "margin-left:16px;background:none;border:1px solid #fff;border-radius:4px;" +
+        "color:#fff;font:inherit;font-size:12px;padding:3px 10px;cursor:pointer;vertical-align:middle;"
+    );
+    trust.onclick = () => addToAllowlist(el);
+    el.appendChild(trust);
+
     const close = document.createElement("button");
     close.textContent = "×";
     close.setAttribute("aria-label", chrome.i18n.getMessage("bannerDismiss"));
@@ -66,6 +81,33 @@
     close.onclick = () => el.remove();
     el.appendChild(close);
     document.documentElement.appendChild(el);
+  }
+
+  function addToAllowlist(bannerEl) {
+    const host = location.hostname;
+    const confirmed = window.confirm(chrome.i18n.getMessage("bannerAllowlistConfirm", [host]));
+    if (!confirmed) return;
+
+    if (!allowlist.includes(host)) allowlist = allowlist.concat([host]);
+    chrome.storage.local.set({ allowlist });
+
+    try {
+      // Mirrors report() below so a manual "trust this site" leaves the same
+      // kind of trail a detection does — see README on why: an allowlist add
+      // silences this host forever, so it shouldn't be invisible afterwards.
+      chrome.runtime.sendMessage({
+        type: "clickfix-allowlist-add",
+        url: location.href,
+        hostname: host,
+        score,
+        indicators: Array.from(matched),
+      });
+    } catch (e) {}
+
+    if (bannerEl) {
+      bannerEl.textContent = chrome.i18n.getMessage("bannerAllowlistAdded", [host]);
+      setTimeout(() => bannerEl.remove(), 2500);
+    }
   }
 
   function report() {

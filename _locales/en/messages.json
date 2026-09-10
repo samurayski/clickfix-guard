@@ -15,6 +15,20 @@
     "message": "Dismiss warning",
     "description": "Accessible label for the banner close button."
   },
+  "bannerAllowlistButton": {
+    "message": "Trust this site",
+    "description": "Label for the banner button that adds the site to the allow list."
+  },
+  "bannerAllowlistConfirm": {
+    "message": "Add $HOST$ to your permanent allow list? ClickFix Guard will never warn on this site again after this. Only confirm if you're sure this warning is a false positive.",
+    "description": "Confirmation dialog shown before adding to the allow list.",
+    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+  },
+  "bannerAllowlistAdded": {
+    "message": "$HOST$ was added to the allow list.",
+    "description": "Brief confirmation shown in the banner after allowlisting.",
+    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+  },
   "popupTitle": {
     "message": "ClickFix Guard — recent detections",
     "description": "Heading in the toolbar popup."
@@ -26,5 +40,9 @@
   "popupScore": {
     "message": "score",
     "description": "Label preceding the numeric score in a popup log entry."
+  },
+  "popupAllowlistTitle": {
+    "message": "Manually trusted from the banner",
+    "description": "Heading for the section listing sites added to the allow list via the banner button."
   }
 }
