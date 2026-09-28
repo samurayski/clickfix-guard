@@ -132,8 +132,46 @@ async function postWebhook(entry) {
   fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(entry),
+    body: JSON.stringify(SLACK_INCOMING_WEBHOOK_RE.test(url) ? slackMessage(entry) : entry),
   }).catch(() => {});
+}
+
+// Slack incoming webhooks reject arbitrary JSON (a message needs `text`), so a
+// hooks.slack.com/services/... URL gets a formatted message; anything else
+// (SIEM / HTTP collectors) gets the raw detection entry.
+const SLACK_INCOMING_WEBHOOK_RE = /^https:\/\/hooks\.slack\.com\/services\//i;
+
+// The page URL is a lure, and the message is read by people in a security
+// channel: it's defanged (hxxps://evil[.]example) and put in code formatting so
+// nobody clicks through by accident, and unfurling is off so Slack's servers
+// don't fetch it either.
+function defang(url) {
+  return String(url).slice(0, 300).replace(/^http/i, "hxxp").replace(/\./g, "[.]").replace(/`/g, "'");
+}
+
+function slackEscape(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function slackMessage(entry) {
+  const t = (key) => chrome.i18n.getMessage(key);
+  let host = "";
+  try {
+    host = new URL(entry.url).hostname;
+  } catch (e) {}
+  const lines = [
+    "*🚨 " + t("slackTitle") + "*",
+    "*" + t("slackPage") + ":* `" + slackEscape(defang(entry.url)) + "`",
+    "*" + t("slackScore") + ":* " + entry.score,
+    "*" + t("slackIndicators") + ":* " + slackEscape((entry.indicators || []).join(", ")),
+    "*" + t("slackTime") + ":* " + new Date(entry.time).toLocaleString(chrome.i18n.getUILanguage()),
+  ];
+  return {
+    text: "🚨 " + t("slackTitle") + ": " + slackEscape(defang(host || entry.url)),
+    blocks: [{ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } }],
+    unfurl_links: false,
+    unfurl_media: false,
+  };
 }
 
 // A user trusted a site from the banner. The hostname comes from the sender's

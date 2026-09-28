@@ -76,5 +76,25 @@
         "example": "allowlist: \"com\""
       }
     }
+  },
+  "slackTitle": {
+    "message": "ClickFix Guard detection",
+    "description": "Heading of the Slack detection message."
+  },
+  "slackPage": {
+    "message": "Page",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackScore": {
+    "message": "Score",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackIndicators": {
+    "message": "Indicators",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackTime": {
+    "message": "Time",
+    "description": "Field label in the Slack detection message."
   }
 }

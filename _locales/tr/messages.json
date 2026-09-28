@@ -76,5 +76,25 @@
         "example": "allowlist: \"com\""
       }
     }
+  },
+  "slackTitle": {
+    "message": "ClickFix Guard tespiti",
+    "description": "Heading of the Slack detection message."
+  },
+  "slackPage": {
+    "message": "Sayfa",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackScore": {
+    "message": "Skor",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackIndicators": {
+    "message": "Göstergeler",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackTime": {
+    "message": "Zaman",
+    "description": "Field label in the Slack detection message."
   }
 }

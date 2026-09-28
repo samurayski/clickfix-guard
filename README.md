@@ -240,6 +240,18 @@ listed in the popup, so a typo is visible instead of silently ignored.
 Because policy can differ per org unit, the pilot group can have
 `allowUserTrust: true` while everyone else has `false`.
 
+**Webhook.** With `webhookUrl` set, the service worker POSTs every detection
+there. A Slack incoming webhook (`https://hooks.slack.com/services/...`) gets a
+formatted message; any other URL gets the raw JSON
+(`url`, `score`, `indicators`, `tabId`, `time`) for a SIEM or HTTP collector.
+The page URL in the Slack message is defanged (`hxxps://lure[.]example`) and in
+code formatting, and link unfurling is off, so nobody in the channel clicks
+through to the lure and Slack's servers don't fetch it. The payload carries no
+user identity. The webhook URL is distributed to every managed browser, so
+treat it as semi-public: `managed_schema.json` marks it `sensitiveValue`
+(masked on `chrome://policy`), but that only deters casual viewing — use a
+dedicated channel and rotate the URL if it's abused.
+
 Chrome delivers policy changes to browsers on its own schedule (typically
 within a few hours; *Reload policies* on `chrome://policy` forces it on one
 machine). The extension applies a change as soon as Chrome delivers it — no

@@ -27,8 +27,9 @@
     },
     "webhookUrl": {
       "title": "Detection webhook",
-      "description": "Optional HTTPS endpoint that receives a JSON POST for every detection (page URL, score, indicators).",
-      "type": "string"
+      "description": "Optional HTTPS endpoint that receives a POST for every detection. A Slack incoming webhook (https://hooks.slack.com/services/...) gets a formatted message with the page URL defanged; any other URL gets the raw JSON (page URL, score, indicators, time).",
+      "type": "string",
+      "sensitiveValue": true
     }
   }
 }
