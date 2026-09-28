@@ -22,14 +22,17 @@ _locales/                        → en, tr message catalogues
 icons/idle/                      → neutral toolbar icon (16/32/48/128)
 icons/alert/                     → red icon, shown only on the tab that triggered
 src/
-  detection/indicators.js        → shared keyword/regex list and weights
-  detection/default-allowlist.js → seed allowlist shipped with the extension
-  content/injected.js            → MAIN world; hooks writeText, write, execCommand('copy')
-  content/content.js             → isolated world; scans the DOM via MutationObserver,
-                                   scores, renders the banner
-  background/service-worker.js   → logs detections to chrome.storage.local,
-                                   optional webhook POST
-  popup/                         → recent detections
+  detection/indicators.js        → keyword/regex lists, weights, clipboard analysis
+  detection/default-allowlist.js → built-in defaults for keys the Admin console doesn't set
+  shared/policy-core.js          → Admin console policy → effective policy, allowlist rules
+  content/injected.js            → MAIN world; hooks the clipboard APIs, ships raw text
+                                   to content.js over a private MessagePort
+  content/content.js             → isolated world; scores clipboard + DOM text,
+                                   renders the banner
+  background/service-worker.js   → applies the Admin console policy, logs
+                                   detections, owns all storage writes, webhook
+  popup/                         → recent detections, trusted sites, policy source
+managed_schema.json              → the settings the Admin console can set
 ```
 
 ### Why one layer isn't enough
@@ -66,10 +69,9 @@ If none of the three match — a documentation site's "copy the install command"
 button, for example — nothing is scored. That is deliberate; scoring it produces
 far too many false positives on developer-facing sites.
 
-There is no settings UI. `threshold`, `allowlist` and `webhookUrl` live as
-`chrome.storage.local` keys. To push them centrally in a managed fleet, switch
-the `chrome.storage.local.get` calls in `content.js` and `service-worker.js` to
-`chrome.storage.managed.get` and deliver the values by enterprise policy.
+There is no settings UI in the extension. The threshold, the allowlists and the
+webhook are set centrally from the Admin console (see
+[Central management](#central-management-admin-console)).
 
 To extend detection, add `{ re, label }` entries to `indicators.js`; `content.js`
 does not need to change.
@@ -77,7 +79,7 @@ does not need to change.
 > **A false-positive class worth knowing about.** SHA-1/256/512, MD5 and git
 > commit hashes are pure hex, which is a subset of the base64 alphabet — a "copy
 > checksum" button used to trip `opaqueBlob` on its own and push the score to the
-> threshold in a single step. `HEX_ONLY` in `injected.js` now excludes pure-hex
+> threshold in a single step. `HEX_ONLY` in `indicators.js` now excludes pure-hex
 > strings; real `-EncodedCommand` payloads (UTF-16LE base64, mixed case, `=`
 > padding) are still caught. Note that *lowering* the threshold would make this
 > worse, not better. When you see a false positive, look at which signal fired
@@ -91,7 +93,7 @@ does not need to change.
 > once its spaces are gone — which fits the base64 alphabet just as well as a
 > real payload does. Copying a translated sentence on `translate.google.com`
 > (or any long-enough prose elsewhere) could trip it with zero relation to an
-> encoded command. `looksLikeOpaqueBlob()` in `injected.js` now judges each
+> encoded command. `looksLikeOpaqueBlob()` in `indicators.js` now judges each
 > whitespace-delimited *token* on its own — a real blob is written as one
 > unbroken token to begin with, prose never is — and additionally requires a
 > digit or mixed case, which every real base64 blob has and a long plain word
@@ -120,7 +122,7 @@ DOM or the page source, it is decoded in memory and handed straight to
 the source looked like, the real decoded string is visible at call time.
 
 The remaining gap was that the decoded command need not contain any keyword from
-`SUSPICIOUS` — an attacker using a LOLBin outside the list would slip through.
+`CLIPBOARD_SUSPICIOUS` — an attacker using a LOLBin outside the list would slip through.
 That is what `clipboardAfterVerifyClick` closes: the verification checkbox and
 the "verifying" overlay class flow are a recognisable pattern, so `content.js`
 watches clicks and Enter/Space on such controls and scores any silent clipboard
@@ -128,7 +130,7 @@ write in the following 800 ms even when the content doesn't match.
 
 `test-pages/level5-keywordless-behavioral.html` reproduces exactly this scenario.
 
-**Residual risk:** `SUSPICIOUS` and `VERIFY_ELEMENT_RE` are still fixed regex
+**Residual risk:** `CLIPBOARD_SUSPICIOUS` and `VERIFY_ELEMENT_RE` are still fixed regex
 lists. An attacker who both avoids known LOLBin names *and* hides the trigger
 behind a control that doesn't look like verification (a plain "Continue" button)
 leaves all three clipboard signals silent. What remains is the text layer picking
@@ -161,54 +163,125 @@ A `chrome.tabs.onUpdated` listener resets the icon and badge as soon as a tab
 limitation: `history.pushState` navigation inside an SPA doesn't fire
 `status: loading`, so the icon can stay red until the next full page load.
 
-## Default allowlist
+## When the page knows about the extension
 
-`src/detection/default-allowlist.js` ships a seed list covering the
-highest-false-positive categories. On an allowlisted host the extension does
-nothing at all — no scanning, no clipboard listeners, not merely a suppressed
-banner.
+A ClickFix kit that has seen this extension can target it directly, so the
+layers are built to survive that, not just to catch the naive case.
 
-Categories: AI assistants (the biggest source of false positives, since users
-genuinely ask them to write shell commands and the resulting copy button trips
-the keyword list), developer documentation, package and code hosting, Q&A
-communities, and a few office/productivity hosts.
+**Clipboard hooks (`injected.js`).** Hooks sit on `Clipboard.prototype`,
+`Document.prototype.execCommand`, `DataTransfer.prototype.setData` and
+`DataTransferItemList.prototype.add` — not on the `navigator.clipboard`
+instance, which `Clipboard.prototype.writeText.call(navigator.clipboard, x)`
+would simply walk around. Copy-event hijacking ("pastejacking": a `copy`
+handler that swaps the data via `event.clipboardData`) is covered. Same-origin
+iframes are separate JS realms with their own unhooked prototypes; they are
+patched the moment the page reaches into them via `contentWindow` or
+`contentDocument`.
 
-Deliberately excluded: free and multi-tenant hosting domains — `github.io`,
-`pages.dev`, `netlify.app`, `vercel.app`, `sites.google.com`, `notion.site`,
-`wordpress.com`, `web.app`, `azurewebsites.net` and similar. These are exactly
-what attackers use to put a ClickFix page behind a trustworthy-looking apex
-domain. Bare apexes like `google.com` are excluded for the same reason; only
-product-specific hosts are listed.
+`injected.js` shares the page's JS world, so the page can replace any builtin
+— `RegExp.prototype.test`, `Array.prototype.push`, `window.postMessage` — to
+blind it. Every builtin it needs is therefore captured before any page script
+runs, each argument is converted to a string once and that exact string is
+what reaches the real API (so a `toString()` that answers differently the
+second time can't show us one thing and write another), and **no analysis
+happens in the MAIN world**: the raw text goes over a private `MessagePort` to
+`content.js`, which matches it in the isolated world where the page can't
+touch the regexes. The port is handed over by a handshake that finishes before
+any page script can intercept it.
 
-**Treat it as a starting point, not a decision.** Review it before deploying.
-Edit the file and repackage for a permanent change, or push an `allowlist` key
-via `chrome.storage.managed` to change it centrally without touching the code.
+**Banner (`content.js`).** Its contents sit in a closed shadow root — the page
+can't query or click its buttons, and "Trust this site" ignores synthetic
+clicks regardless (`event.isTrusted`). The host element's inline style is all
+`!important`, and a guard puts the banner back if the page removes it, strips
+its style/attributes, or stacks an element after it (up to 50 repairs, so two
+scripts fighting can't spin forever). The red toolbar badge, set by the
+service worker, is outside the page's reach either way.
 
-### Allowlisting from the banner
+**Residual risk.** A page that reaches a fresh same-origin iframe via
+`window.frames[i]` (rather than `contentWindow`) before Chrome injects the
+content scripts into it can still obtain unhooked prototypes; a page that
+fights hard enough can cover the banner visually (e.g. with top-layer
+elements). A system notification (`chrome.notifications`) would be out of the
+page's reach entirely, but adding that permission triggers a permission
+prompt that disables a self-hosted extension on update until each user
+re-approves it — so it's deliberately not in this version.
 
-The warning banner itself has a **"Trust this site"** button, next to the
-dismiss (×) button. Unlike ×, which just hides that one banner, it persists
-the current hostname into `chrome.storage.local`'s `allowlist` — the site
-never triggers the banner again, on any tab, until someone edits the list
-back out.
+## Central management (Admin console)
 
-That is a much bigger action than closing a banner, so it isn't one click:
+What is allowlisted, what can never be allowlisted, the score threshold,
+whether users may trust sites themselves and the detection webhook are all set
+as **Chrome extension policy** — from the Google Admin console, or equally
+from Windows GPO/registry, Intune or a macOS configuration profile. Nothing
+about it depends on a particular person's account or key: anyone holding the
+right admin role can change it, the Admin console keeps an audit trail, and
+users can't override it.
 
-- A native `confirm()` names the hostname and states the consequence
-  ("ClickFix Guard will never warn on this site again") before anything is
-  written. There's no custom "are you sure" UI to skip past by habit —
-  it's the browser's own blocking dialog.
-- The action is logged to `chrome.storage.local`'s `allowlistLog` (mirroring
-  the `log` a real detection writes) and shown in the popup under **"Manually
-  trusted from the banner"**. An allowlist entry that fired once and got
-  silenced by a click should stay visible somewhere, the same way a
-  detection does — this is what closes that loop for self-service
-  allowlisting instead of only the seed file.
+Admin console: *Devices → Chrome → Apps & extensions → Users & browsers →*
+select the org unit → *ClickFix Guard* → **Policy for extensions**:
 
-This does not replace reviewing `default-allowlist.js` for a managed
-deployment — it's the escape hatch for the false positives that show up
-after that review, on a machine where nobody is going to edit a JS file and
-repackage the extension over it.
+```json
+{
+  "allowlist":      { "Value": ["github.com", "stackoverflow.com"] },
+  "neverAllowlist": { "Value": ["pages.dev", "sites.google.com"] },
+  "threshold":      { "Value": 5 },
+  "allowUserTrust": { "Value": true },
+  "webhookUrl":     { "Value": "https://soc.example.com/clickfix" }
+}
+```
+
+The keys are declared in `managed_schema.json`. Every key is optional: a key
+that isn't set falls back to its built-in default (`default-allowlist.js`,
+threshold 5, user trust on), and a key that is set **replaces** that default
+rather than adding to it. Hostnames are forgiving about case, whitespace, a
+leading `*.` or a pasted URL; an entry that still isn't a hostname with at
+least two labels (`"com"` would allowlist every `.com` site) is dropped and
+listed in the popup, so a typo is visible instead of silently ignored.
+
+Because policy can differ per org unit, the pilot group can have
+`allowUserTrust: true` while everyone else has `false`.
+
+Chrome delivers policy changes to browsers on its own schedule (typically
+within a few hours; *Reload policies* on `chrome://policy` forces it on one
+machine). The extension applies a change as soon as Chrome delivers it — no
+extension update, no restart. The popup shows whether the organization's
+settings or the built-in defaults are in effect.
+
+### Allowlist semantics
+
+- **Admin allowlist** (`allowlist`) is authoritative and matches the hostname
+  and its subdomains. On an allowlisted host the extension turns itself off —
+  no scanning, no scoring.
+- **User trust** (the banner's "Trust this site", see below) is exact-hostname
+  only, only counts while `allowUserTrust` is `true`, and never applies to a
+  host matching `neverAllowlist` — checked against the host being visited, so
+  trusting an apex like `google.com` still can't silence `sites.google.com`.
+- **`neverAllowlist`** holds free and multi-tenant hosting domains — `github.io`,
+  `pages.dev`, `workers.dev`, `netlify.app`, `vercel.app`, `sites.google.com`,
+  `translate.goog`, `notion.site`, `web.app`, `azurewebsites.net` and similar.
+  These are exactly what attackers use to put a ClickFix page behind a
+  trustworthy-looking domain; without this list a lure there could simply tell
+  the visitor to click "Trust this site". Bare apexes like `google.com` stay off
+  the admin allowlist for the same reason.
+
+### Trusting a site from the banner (pilot)
+
+While `allowUserTrust` is `true`, the banner shows a **"Trust this site"** button
+next to ×. It's a bigger action than closing a banner, so:
+
+- a native `confirm()` names the hostname and the consequence first;
+- the service worker — not the page's content script — does the write, after
+  re-checking the policy against the sender's real URL, and serialises all
+  storage writes so two tabs can't overwrite each other's additions;
+- it's logged to `allowlistLog` and shown in the popup under **"Manually trusted
+  from the banner"**, so a site silenced by a click never becomes invisible.
+
+User entries live in their own `userAllowlist` key. (Up to 0.3.0 they were
+merged into one `allowlist` key together with the built-in defaults, which froze
+those defaults for that user; 0.4.0 migrates the user-added part over.) Setting
+`allowUserTrust` to `false` hides the button everywhere **and** ignores
+everything users trusted earlier — the switch for ending the pilot, or for
+reviewing `allowlistLog` entries and promoting the legitimate ones to the admin
+allowlist.
 
 ## Install
 
@@ -216,20 +289,23 @@ repackage the extension over it.
 
 1. Open `chrome://extensions` and enable **Developer mode**.
 2. **Load unpacked** and select the `clickfix-guard/` folder.
-3. Follow `test-pages/README.md` to walk the five levels and confirm the banner
+3. Follow `test-pages/README.md` to walk the six levels and confirm the banner
    fires when expected.
 
 ### Managed deployment
 
 Publish to the Chrome Web Store with private or domain visibility, then
 force-install by ID from the Admin console under
-*Devices → Chrome → Apps and extensions → Users and browsers*.
+*Devices → Chrome → Apps and extensions → Users and browsers*, and set its
+settings under **Policy for extensions** on the same page (see
+[Central management](#central-management-admin-console)).
 
 Alternatively, self-host: serve the `.crx` and an update manifest from your own
 HTTPS server, add that manifest URL to `manifest.json` as `update_url`, repack
 with your own key, and force-install by ID with the custom URL. Note that after
 the first install the browser follows the `update_url` baked into the packed
-extension, not the one in the policy — point it at a hostname you will keep.
+extension, not the one in the policy — point it at a hostname you will keep
+(the `ExtensionSettings` policy's `override_update_url` can redirect it later).
 
 ## Defence in depth
 

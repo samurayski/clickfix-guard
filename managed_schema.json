@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "allowlist": {
+      "title": "Allowlisted sites",
+      "description": "Hostnames where ClickFix Guard is switched off entirely. Each entry also covers its subdomains (github.com covers gist.github.com). Replaces the built-in list when set.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "neverAllowlist": {
+      "title": "Sites users can never trust",
+      "description": "Free/multi-tenant hosting domains (pages.dev, sites.google.com, ...). The banner's 'Trust this site' button is hidden on them and user-trusted entries never cover them. Replaces the built-in list when set.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "threshold": {
+      "title": "Warning threshold",
+      "description": "Score at which the warning banner is shown. Default 5.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "allowUserTrust": {
+      "title": "Let users trust a site from the banner",
+      "description": "Pilot switch. false hides the 'Trust this site' button and ignores every site users trusted earlier. Default true.",
+      "type": "boolean"
+    },
+    "webhookUrl": {
+      "title": "Detection webhook",
+      "description": "Optional HTTPS endpoint that receives a JSON POST for every detection (page URL, score, indicators).",
+      "type": "string"
+    }
+  }
+}

@@ -50,3 +50,18 @@ chrome.storage.local.get({ allowlistLog: [] }, ({ allowlistLog }) => {
   allowlistSection.hidden = false;
   renderEntries(allowlistList, allowlistLog, "hostname");
 });
+
+// Where the active policy comes from — during the pilot this is the quickest
+// way to confirm an Admin console change has reached a given machine, and to
+// spot a mistyped entry the admin made.
+const policyEl = document.getElementById("policy");
+chrome.storage.local.get({ policy: null }, ({ policy }) => {
+  const lines = [
+    chrome.i18n.getMessage(policy && policy.source === "managed" ? "popupPolicyManaged" : "popupPolicyBuiltin"),
+  ];
+  if (policy && Array.isArray(policy.ignored) && policy.ignored.length) {
+    policyEl.classList.add("error");
+    lines.push(chrome.i18n.getMessage("popupPolicyIgnored", [policy.ignored.join(", ")]));
+  }
+  policyEl.textContent = lines.join("\n");
+});

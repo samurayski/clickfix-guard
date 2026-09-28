@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Seviye 6 – Hook Atlatma + Pastejacking</title>
+<style>
+  body { font: 15px/1.6 -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; }
+  .box { border: 1px solid #d0d0d0; border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+  .check { display: inline-flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 6px; padding: 10px 16px; cursor: pointer; background: #fafafa; }
+  code { background: #f2f2f2; padding: 4px 8px; border-radius: 4px; font-size: 18px; letter-spacing: .05em; }
+  .banner { background: #fff3cd; border: 1px solid #ffe08a; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
+  .note { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>ClickFix Guard test sayfası – Seviye 6 (hook atlatma).</strong> 0.3.0'daki
+    pano hook'unu atlatan iki tekniği dener. Sayfa metninde bilerek hiçbir talimat ya da
+    komut adı <em>geçmiyor</em> — banner yalnızca pano katmanından gelmeli.
+    <br />Her testten sonra sayfayı yenileyin (banner sayfa başına bir kez çıkar).
+  </div>
+
+  <div class="box">
+    <h3>A) Prototip çağrısı</h3>
+    <p>Kutuyu işaretleyince komut
+      <code style="font-size:13px">Clipboard.prototype.writeText.call(navigator.clipboard, …)</code>
+      ile yazılır — <code style="font-size:13px">navigator.clipboard.writeText</code>'e takılan
+      eski hook bunu hiç görmezdi.</p>
+    <label class="check"><input type="checkbox" id="proto" /> Devam etmek için onaylayın</label>
+  </div>
+
+  <div class="box">
+    <h3>B) Pastejacking (copy olayı ele geçirme)</h3>
+    <p>Aşağıdaki doğrulama kodunu seçip <strong>Ctrl+C / ⌘+C</strong> ile kopyalayın:</p>
+    <p><code id="code">VERIFY-4821</code></p>
+    <p class="note">Görünen kod masum; sayfanın <code style="font-size:13px">copy</code> olayı
+      dinleyicisi panoya onun yerine komutu koyar (<code style="font-size:13px">event.clipboardData.setData</code>).
+      Panoya ne gittiğini görmek için bir metin editörüne yapıştırın.</p>
+  </div>
+
+  <script>
+    // Zararsız: seviye 1 ile aynı komut — sadece "hello world" yazdırır, ağa
+    // çıkmaz, dosya yazmaz.
+    const payload =
+      "powershell -NoProfile -Command \"[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('aGVsbG8gd29ybGQ='))\"";
+
+    document.getElementById("proto").addEventListener("change", (e) => {
+      if (!e.target.checked) return;
+      Clipboard.prototype.writeText.call(navigator.clipboard, payload).catch(() => {});
+    });
+
+    document.addEventListener("copy", (e) => {
+      e.clipboardData.setData("text/plain", payload);
+      e.preventDefault();
+    });
+
+    // Seçimi kolaylaştır: koda tıklayınca tamamı seçilsin.
+    document.getElementById("code").addEventListener("click", (e) => {
+      const r = document.createRange();
+      r.selectNodeContents(e.target);
+      const s = getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Signing keys — never commit these (CRX key and policy signing key)
+*.pem
+*.key
+key.txt
+
+# Packed builds (attach to a release instead)
+*.crx
+*.zip
+dist/
+build/
+
+# Source maps leak local paths
+*.map
+
+# Local config
+.env
+.env.*
+config.local.json
+
+# Dependencies
+node_modules/
+__pycache__/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "update_url": "https://samurayski.github.io/clickfix-guard/updates.xml",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -11,6 +11,9 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "storage": {
+    "managed_schema": "managed_schema.json"
+  },
   "background": {
     "service_worker": "src/background/service-worker.js"
   },
@@ -25,6 +28,7 @@
       "js": [
         "src/detection/indicators.js",
         "src/detection/default-allowlist.js",
+        "src/shared/policy-core.js",
         "src/content/content.js"
       ]
     },

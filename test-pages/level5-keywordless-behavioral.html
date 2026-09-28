@@ -18,7 +18,7 @@
     Bu sayfa, gözlemlenmiş gerçek bir kampanyanın akışını taklit
     eder: encoded komut sayfa kaynağında hiç görünmez, sadece bellekte iç içe <code>atob()</code>
     ile çözülür ve checkbox'a tıklanınca <strong>sessizce</strong> panoya yazılır. Aşağıdaki komut
-    bilinçli olarak <code>injected.js</code>'teki <code>SUSPICIOUS</code> regex'inde <em>olmayan</em>
+    bilinçli olarak <code>indicators.js</code>'teki <code>CLIPBOARD_SUSPICIOUS</code> regex'inde <em>olmayan</em>
     bir LOLBin (<code>pcalua.exe</code>) kullanır — yani salt keyword eşleşmesiyle yakalanmaz.
     Yakalanması gereken katman: "doğrulama görünümlü bir kontrole tıklama → 800ms içinde sessiz
     clipboard yazımı" davranışsal kuralı (<code>content.js</code> → <code>clipboardAfterVerifyClick</code>).

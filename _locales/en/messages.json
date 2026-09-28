@@ -22,12 +22,22 @@
   "bannerAllowlistConfirm": {
     "message": "Add $HOST$ to your permanent allow list? ClickFix Guard will never warn on this site again after this. Only confirm if you're sure this warning is a false positive.",
     "description": "Confirmation dialog shown before adding to the allow list.",
-    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "translate.google.com"
+      }
+    }
   },
   "bannerAllowlistAdded": {
     "message": "$HOST$ was added to the allow list.",
     "description": "Brief confirmation shown in the banner after allowlisting.",
-    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "translate.google.com"
+      }
+    }
   },
   "popupTitle": {
     "message": "ClickFix Guard — recent detections",
@@ -44,5 +54,27 @@
   "popupAllowlistTitle": {
     "message": "Manually trusted from the banner",
     "description": "Heading for the section listing sites added to the allow list via the banner button."
+  },
+  "bannerAllowlistRejected": {
+    "message": "This site can't be trusted from here. If you think this warning is wrong, ask your security team to review it.",
+    "description": "Shown in the banner when the policy doesn't allow trusting this site."
+  },
+  "popupPolicyBuiltin": {
+    "message": "Built-in defaults (no settings from your organization)",
+    "description": "Popup footer when no Admin console policy is set."
+  },
+  "popupPolicyManaged": {
+    "message": "Settings managed by your organization",
+    "description": "Popup footer when the Admin console policy is in effect."
+  },
+  "popupPolicyIgnored": {
+    "message": "Ignored invalid policy entries: $ENTRIES$",
+    "description": "Popup footer listing Admin console entries that were invalid.",
+    "placeholders": {
+      "entries": {
+        "content": "$1",
+        "example": "allowlist: \"com\""
+      }
+    }
   }
 }

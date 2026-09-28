@@ -1,11 +1,13 @@
-// Default allowlist for ClickFix Guard. Entries are hostnames — isAllowlisted()
-// in content.js matches the hostname itself and any of its subdomains, and
-// scanning/hooking is skipped entirely on a match (see content.js `start()`).
+// Built-in policy defaults for ClickFix Guard. Entries are hostnames; an
+// allowlist entry matches the hostname itself and any of its subdomains, and
+// scanning is skipped entirely on a match (see policy-core.js / content.js).
 //
-// This is a SEED list to cut down false positives on sites that legitimately
-// show/copy shell-like text (AI coding assistants, dev docs, package
-// registries, Q&A sites) — not a guarantee. Review before relying on it, and
-// read the "do NOT allowlist" block at the bottom before adding more.
+// These apply for every key the organization hasn't set in the Admin console
+// (see policy-core.js and "Central management" in the README); a key set
+// there replaces the list here. The allowlist is a SEED list to cut
+// down false positives on sites that legitimately show/copy shell-like text
+// (AI coding assistants, dev docs, package registries, Q&A sites) — not a
+// guarantee. Read the NEVER_ALLOWLIST block at the bottom before adding more.
 (function () {
   const AI_ASSISTANTS = [
     "chat.openai.com",
@@ -59,16 +61,50 @@
   // category below.
   const PRODUCTIVITY = ["office.com", "outlook.com", "teams.microsoft.com", "slack.com", "zoom.us"];
 
-  // Intentionally NOT included, on purpose — free/user-content hosting
-  // platforms that attackers already abuse to host phishing/ClickFix pages
-  // behind a trusted-looking apex domain. Allowlisting these would let an
-  // attacker bypass detection just by hosting on them:
-  //   github.io, gitlab.io, pages.dev, netlify.app, vercel.app,
-  //   sites.google.com, script.google.com, forms.google.com, notion.site,
-  //   herokuapp.com, blogspot.com, wordpress.com, weebly.com, wixsite.com,
-  //   firebaseapp.com, web.app, azurewebsites.net, s3.amazonaws.com
-  // Do not add these (or their parent apex, e.g. plain "google.com") without
-  // understanding that anyone can publish a page there.
+  // Free/user-content hosting platforms that attackers already abuse to host
+  // phishing/ClickFix pages behind a trusted-looking apex domain. These are
+  // never on the allowlist, and — unlike the list above, which only seeds
+  // the built-in defaults — this one is also enforced: the banner's "Trust
+  // this site" button is hidden on them and a user-added entry that matches
+  // one is ignored (see policy-core.js). Otherwise a lure hosted here could
+  // simply tell the visitor to click "Trust this site" and silence itself.
+  // The Admin console can replace this list (neverAllowlist).
+  const NEVER_ALLOWLIST = [
+    "github.io",
+    "gitlab.io",
+    "pages.dev",
+    "workers.dev",
+    "r2.dev",
+    "trycloudflare.com",
+    "netlify.app",
+    "vercel.app",
+    "sites.google.com",
+    "script.google.com",
+    "forms.google.com",
+    "googleusercontent.com",
+    "translate.goog",
+    "storage.googleapis.com",
+    "appspot.com",
+    "firebaseapp.com",
+    "web.app",
+    "notion.site",
+    "herokuapp.com",
+    "onrender.com",
+    "glitch.me",
+    "replit.app",
+    "surge.sh",
+    "ngrok.io",
+    "ngrok-free.app",
+    "blogspot.com",
+    "wordpress.com",
+    "weebly.com",
+    "wixsite.com",
+    "azurewebsites.net",
+    "blob.core.windows.net",
+    "s3.amazonaws.com",
+  ];
+  // Do not add these (or their parent apex, e.g. plain "google.com") to the
+  // allowlist without understanding that anyone can publish a page there.
 
   globalThis.__CFG_DEFAULT_ALLOWLIST__ = [
     ...AI_ASSISTANTS,
@@ -77,4 +113,5 @@
     ...QA_COMMUNITIES,
     ...PRODUCTIVITY,
   ];
+  globalThis.__CFG_DEFAULT_NEVER_ALLOWLIST__ = NEVER_ALLOWLIST;
 })();

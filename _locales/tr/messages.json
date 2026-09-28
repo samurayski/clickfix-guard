@@ -22,12 +22,22 @@
   "bannerAllowlistConfirm": {
     "message": "$HOST$ adresini kalıcı güvenilir listesine eklemek istediğine emin misin? Bundan sonra ClickFix Guard bu sitede bir daha hiç uyarı göstermeyecek. Sadece bu uyarının yanlış alarm olduğundan eminsen onayla.",
     "description": "Güvenilir listeye eklemeden önce çıkan onay diyaloğu metni.",
-    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "translate.google.com"
+      }
+    }
   },
   "bannerAllowlistAdded": {
     "message": "$HOST$ güvenilir listesine eklendi.",
     "description": "Güvenilir listeye ekleme sonrası banner'da kısa süre gösterilen onay metni.",
-    "placeholders": { "host": { "content": "$1", "example": "translate.google.com" } }
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "translate.google.com"
+      }
+    }
   },
   "popupTitle": {
     "message": "ClickFix Guard — son tespitler",
@@ -44,5 +54,27 @@
   "popupAllowlistTitle": {
     "message": "Manuel olarak güvenilir işaretlenenler",
     "description": "Popup'ta banner üzerinden eklenen sitelerin listelendiği bölümün başlığı."
+  },
+  "bannerAllowlistRejected": {
+    "message": "Bu siteye buradan güvenilemez. Uyarının yanlış olduğunu düşünüyorsan güvenlik ekibinden incelemesini iste.",
+    "description": "Politika bu siteye güvenmeye izin vermediğinde banner'da gösterilir."
+  },
+  "popupPolicyBuiltin": {
+    "message": "Yerleşik varsayılanlar (kurumunuzdan ayar gelmedi)",
+    "description": "Admin console politikası yokken popup alt bilgisi."
+  },
+  "popupPolicyManaged": {
+    "message": "Ayarlar kurumunuz tarafından yönetiliyor",
+    "description": "Admin console politikası yürürlükteyken popup alt bilgisi."
+  },
+  "popupPolicyIgnored": {
+    "message": "Geçersiz olduğu için yok sayılan politika girdileri: $ENTRIES$",
+    "description": "Admin console'daki geçersiz girdileri listeleyen popup alt bilgisi.",
+    "placeholders": {
+      "entries": {
+        "content": "$1",
+        "example": "allowlist: \"com\""
+      }
+    }
   }
 }
