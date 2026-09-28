@@ -96,5 +96,13 @@
   "slackTime": {
     "message": "Time",
     "description": "Field label in the Slack detection message."
+  },
+  "slackUser": {
+    "message": "User",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackDevice": {
+    "message": "Browser",
+    "description": "Field label in the Slack detection message."
   }
 }

@@ -129,11 +129,45 @@ async function postWebhook(entry) {
     url = (await chrome.storage.local.get({ webhookUrl: "" })).webhookUrl;
   }
   if (!url) return;
+  const payload = Object.assign({}, entry, await reporterContext(managed));
   fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(SLACK_INCOMING_WEBHOOK_RE.test(url) ? slackMessage(entry) : entry),
+    body: JSON.stringify(SLACK_INCOMING_WEBHOOK_RE.test(url) ? slackMessage(payload) : payload),
   }).catch(() => {});
+}
+
+// Which browser reported it. An extension can't read the machine's hostname,
+// so this is what it can say: OS, Chrome and extension version, and a random
+// ID generated once per install — it ties repeat detections from one browser
+// together without identifying anyone. The Chrome profile's email is added
+// only when the Admin console sets includeUserEmail: it is personal data,
+// sent next to the URL the person was on.
+async function reporterContext(managed) {
+  const uaData = navigator.userAgentData;
+  const ctx = {
+    installId: await getInstallId(),
+    platform: (uaData && uaData.platform) || navigator.platform || "",
+    chromeVersion: (navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || "",
+    extensionVersion: chrome.runtime.getManifest().version,
+  };
+  if (managed.includeUserEmail === true && chrome.identity && chrome.identity.getProfileUserInfo) {
+    try {
+      const info = await chrome.identity.getProfileUserInfo({ accountStatus: "ANY" });
+      if (info && info.email) ctx.user = info.email;
+    } catch (e) {}
+  }
+  return ctx;
+}
+
+function getInstallId() {
+  return withStorageLock(async () => {
+    const { installId } = await chrome.storage.local.get({ installId: "" });
+    if (installId) return installId;
+    const id = crypto.randomUUID();
+    await chrome.storage.local.set({ installId: id });
+    return id;
+  });
 }
 
 // Slack incoming webhooks reject arbitrary JSON (a message needs `text`), so a
@@ -166,6 +200,12 @@ function slackMessage(entry) {
     "*" + t("slackIndicators") + ":* " + slackEscape((entry.indicators || []).join(", ")),
     "*" + t("slackTime") + ":* " + new Date(entry.time).toLocaleString(chrome.i18n.getUILanguage()),
   ];
+  if (entry.user) lines.push("*" + t("slackUser") + ":* " + slackEscape(entry.user));
+  if (entry.installId) {
+    const device = [entry.platform, entry.chromeVersion && "Chrome " + entry.chromeVersion,
+      "ClickFix Guard " + entry.extensionVersion, "ID " + entry.installId.slice(0, 8)].filter(Boolean);
+    lines.push("*" + t("slackDevice") + ":* " + slackEscape(device.join(" · ")));
+  }
   return {
     text: "🚨 " + t("slackTitle") + ": " + slackEscape(defang(host || entry.url)),
     blocks: [{ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } }],

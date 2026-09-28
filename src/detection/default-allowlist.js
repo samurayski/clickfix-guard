@@ -2,9 +2,9 @@
 // allowlist entry matches the hostname itself and any of its subdomains, and
 // scanning is skipped entirely on a match (see policy-core.js / content.js).
 //
-// These apply for every key the organization hasn't set in the Admin console
-// (see policy-core.js and "Central management" in the README); a key set
-// there replaces the list here. The allowlist is a SEED list to cut
+// The organization's Admin console lists are added to these (see policy-core.js
+// and "Central management" in the README), and can take individual entries
+// out with removeFromBuiltin. The allowlist is a SEED list to cut
 // down false positives on sites that legitimately show/copy shell-like text
 // (AI coding assistants, dev docs, package registries, Q&A sites) — not a
 // guarantee. Read the NEVER_ALLOWLIST block at the bottom before adding more.
@@ -84,8 +84,8 @@
   // policy-core.js): a host here is scanned even if an admin allowlists a
   // broader entry like "google.com", and the banner's "Trust this site"
   // button is hidden on it — otherwise a lure hosted here could simply tell
-  // the visitor to click it and silence itself. The Admin console can replace
-  // this list (neverAllowlist).
+  // the visitor to click it and silence itself. The Admin console can add to
+  // this list (neverAllowlist) or take entries out (removeFromBuiltin).
   const NEVER_ALLOWLIST = [
     // user content served by AI tools: shared artifacts, generated previews, Spaces
     "claudeusercontent.com",

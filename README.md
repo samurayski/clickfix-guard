@@ -202,9 +202,10 @@ service worker, is outside the page's reach either way.
 content scripts into it can still obtain unhooked prototypes; a page that
 fights hard enough can cover the banner visually (e.g. with top-layer
 elements). A system notification (`chrome.notifications`) would be out of the
-page's reach entirely, but adding that permission triggers a permission
-prompt that disables a self-hosted extension on update until each user
-re-approves it — so it's deliberately not in this version.
+page's reach entirely. It needs a permission with an install warning; Chrome
+grants that silently to force-installed extensions, but a user-installed copy
+is disabled on update until the user re-approves it — worth adding once every
+install is policy-managed.
 
 ## Central management (Admin console)
 
@@ -221,33 +222,60 @@ select the org unit → *ClickFix Guard* → **Policy for extensions**:
 
 ```json
 {
-  "allowlist":      { "Value": ["github.com", "stackoverflow.com"] },
-  "neverAllowlist": { "Value": ["pages.dev", "sites.google.com"] },
+  "allowlist":      { "Value": ["intranet.example.com", "qa.example.com"] },
   "threshold":      { "Value": 5 },
   "allowUserTrust": { "Value": true },
   "webhookUrl":     { "Value": "https://soc.example.com/clickfix" }
 }
 ```
 
-The keys are declared in `managed_schema.json`. Every key is optional: a key
-that isn't set falls back to its built-in default (`default-allowlist.js`,
-threshold 5, user trust on), and a key that is set **replaces** that default
-rather than adding to it. Hostnames are forgiving about case, whitespace, a
-leading `*.` or a pasted URL; an entry that still isn't a hostname with at
-least two labels (`"com"` would allowlist every `.com` site) is dropped and
-listed in the popup, so a typo is visible instead of silently ignored.
+| Key | Type | Default | |
+|---|---|---|---|
+| `allowlist` | hostnames | built-in list | **Added to** the built-in list (AI assistants, translation tools, dev docs…); matches subdomains |
+| `neverAllowlist` | hostnames | built-in list | **Added to** the built-in list of multi-tenant hosts; always scanned, wins over every allowlist |
+| `removeFromBuiltin` | hostnames | — | Exact hostnames taken out of either built-in list |
+| `threshold` | 1–100 | 5 | Score at which the banner shows |
+| `allowUserTrust` | bool | `true` | Pilot switch for "Trust this site" |
+| `webhookUrl` | HTTPS URL | — | See below |
+
+The keys are declared in `managed_schema.json`, and every key is optional. The
+lists are **additive**: the Admin console only needs the organization's own
+entries (intranet, internal API docs), a short list can't silently drop the
+built-in protection, and entries added to the built-in lists in later releases
+reach managed browsers without anyone touching the policy. Taking a built-in
+entry out is a separate, explicit key. (Up to 0.4.2 a list set in the Admin
+console *replaced* the built-in one.)
+
+Hostnames are forgiving about case, whitespace, a leading `*.` or a pasted URL.
+An entry that has no effect — not a hostname with at least two labels (`"com"`
+would allowlist every `.com` site), an allowlist entry inside `neverAllowlist`,
+a `removeFromBuiltin` entry that isn't built in — is listed in the popup, so a
+typo is visible instead of silently ignored.
 
 Because policy can differ per org unit, the pilot group can have
 `allowUserTrust: true` while everyone else has `false`.
 
 **Webhook.** With `webhookUrl` set, the service worker POSTs every detection
 there. A Slack incoming webhook (`https://hooks.slack.com/services/...`) gets a
-formatted message; any other URL gets the raw JSON
-(`url`, `score`, `indicators`, `tabId`, `time`) for a SIEM or HTTP collector.
+formatted message; any other URL gets the raw JSON (`url`, `score`,
+`indicators`, `tabId`, `time`, `installId`, `platform`, `chromeVersion`,
+`extensionVersion`, and `user` when enabled) for a SIEM or HTTP collector.
 The page URL in the Slack message is defanged (`hxxps://lure[.]example`) and in
 code formatting, and link unfurling is off, so nobody in the channel clicks
-through to the lure and Slack's servers don't fetch it. The payload carries no
-user identity. The webhook URL is distributed to every managed browser, so
+through to the lure and Slack's servers don't fetch it.
+
+*Who reported it:* an extension can't read the machine's hostname, so each
+message carries the OS, Chrome and extension version, and `installId` — a random
+ID generated once per install that ties repeat detections from one browser
+together without identifying anyone. With `includeUserEmail: true` in the
+policy, the email of the account signed in to Chrome is added as `user`. That's
+personal data sent next to the URL the person visited, so it's off by default.
+It needs the `identity.email` permission, which Chrome grants without a prompt
+for force-installed extensions; a user-installed copy would ask on update.
+Without it, the SOC can still find the person by matching the message's time and
+URL against proxy/DNS logs.
+
+The webhook URL is distributed to every managed browser, so
 treat it as semi-public: `managed_schema.json` marks it `sensitiveValue`
 (masked on `chrome://policy`), but that only deters casual viewing — use a
 dedicated channel and rotate the URL if it's abused.
@@ -270,8 +298,9 @@ settings or the built-in defaults are in effect.
   attackers use to put a ClickFix page behind a trustworthy-looking domain. So
   an admin allowlisting `google.com`, or a user trusting it, still leaves
   `sites.google.com` scanned; an allowlist entry that falls entirely inside it
-  is listed as ignored in the popup. Taking a host off `neverAllowlist` is the
-  only way to allowlist it — a deliberate decision, not a side effect.
+  is listed in the popup as having no effect. Taking a host off `neverAllowlist`
+  (`removeFromBuiltin`) is the only way to allowlist it — a deliberate
+  decision, not a side effect.
 - **Admin allowlist** (`allowlist`) matches the hostname and its subdomains. On
   an allowlisted host the extension turns itself off — no scanning, no scoring.
   It applies per frame: allowlisting `claude.ai` doesn't silence a shared

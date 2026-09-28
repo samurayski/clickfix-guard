@@ -4,21 +4,23 @@
 //
 // The policy is managed centrally from the organization's Admin console (or
 // GPO / MDM) as Chrome extension policy — chrome.storage.managed, schema in
-// managed_schema.json. Any key the admin hasn't set falls back to the
-// built-in default in default-allowlist.js. The service worker turns what the
-// admin set into this shape and stores it as `policy` in chrome.storage.local:
+// managed_schema.json. The admin's allowlist/neverAllowlist are ADDED to the
+// built-in lists in default-allowlist.js (removeFromBuiltin takes built-in
+// entries out); threshold/allowUserTrust fall back to the built-in default
+// when unset. The service worker turns what the admin set into this shape and
+// stores it as `policy` in chrome.storage.local:
 //
 //   {
 //     source: "managed" | "builtin",
 //     threshold: <int 1..100>,
 //     allowUserTrust: <bool — pilot switch for the banner's "Trust this site">,
-//     allowlist: [hostname...],      // matches host + subdomains
-//     neverAllowlist: [hostname...], // hosts a user can never trust
-//     ignored: [string...],          // admin entries that were invalid, for the popup
+//     allowlist: [hostname...],      // effective list; matches host + subdomains
+//     neverAllowlist: [hostname...], // effective list; always scanned, wins over allowlist
+//     ignored: [string...],          // admin entries with no effect, for the popup
 //   }
 (function () {
   const DEFAULT_THRESHOLD = 5;
-  const POLICY_KEYS = ["allowlist", "neverAllowlist", "threshold", "allowUserTrust"];
+  const POLICY_KEYS = ["allowlist", "neverAllowlist", "removeFromBuiltin", "threshold", "allowUserTrust"];
 
   // Lowercase DNS name with at least two labels. Single-label entries are
   // rejected on purpose: "com" would allowlist every .com site.
@@ -70,9 +72,15 @@
   }
 
   // `managed` is what chrome.storage.managed.get(null) returns: only the keys
-  // the admin actually set. Each missing or invalid key falls back to its
-  // built-in default on its own — setting only `allowlist` keeps the built-in
-  // neverAllowlist, and one mistyped hostname drops that entry, not the list.
+  // the admin actually set.
+  //
+  // The admin's lists are ADDED to the built-in ones rather than replacing
+  // them. Replacing meant a short list pasted into the Admin console silently
+  // dropped every built-in entry — including most of neverAllowlist — and
+  // that entries added to the built-in lists in later releases never reached
+  // managed browsers unless someone re-pasted the whole list. Taking a
+  // built-in entry out is a separate, explicit key (removeFromBuiltin, exact
+  // hostnames). One mistyped hostname drops that entry, not the list.
   function policyFromManaged(managed) {
     const m = managed && typeof managed === "object" ? managed : {};
     const policy = builtinPolicy();
@@ -80,10 +88,29 @@
 
     policy.source = "managed";
     const ignored = policy.ignored;
+    if ("removeFromBuiltin" in m) {
+      if (Array.isArray(m.removeFromBuiltin)) {
+        for (const h of normalizeHostList(m.removeFromBuiltin, "removeFromBuiltin", ignored)) {
+          if (!policy.allowlist.includes(h) && !policy.neverAllowlist.includes(h)) {
+            ignored.push("removeFromBuiltin: " + JSON.stringify(h) + " (not a built-in entry)");
+            continue;
+          }
+          policy.allowlist = policy.allowlist.filter((x) => x !== h);
+          policy.neverAllowlist = policy.neverAllowlist.filter((x) => x !== h);
+        }
+      } else {
+        ignored.push("removeFromBuiltin: not a list");
+      }
+    }
     for (const field of ["allowlist", "neverAllowlist"]) {
       if (!(field in m)) continue;
-      if (Array.isArray(m[field])) policy[field] = normalizeHostList(m[field], field, ignored);
-      else ignored.push(field + ": not a list");
+      if (!Array.isArray(m[field])) {
+        ignored.push(field + ": not a list");
+        continue;
+      }
+      for (const h of normalizeHostList(m[field], field, ignored)) {
+        if (!policy[field].includes(h)) policy[field].push(h);
+      }
     }
     if ("threshold" in m) {
       if (Number.isInteger(m.threshold) && m.threshold >= 1 && m.threshold <= 100) policy.threshold = m.threshold;

@@ -96,5 +96,13 @@
   "slackTime": {
     "message": "Zaman",
     "description": "Field label in the Slack detection message."
+  },
+  "slackUser": {
+    "message": "Kullanıcı",
+    "description": "Field label in the Slack detection message."
+  },
+  "slackDevice": {
+    "message": "Tarayıcı",
+    "description": "Field label in the Slack detection message."
   }
 }

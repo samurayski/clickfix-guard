@@ -3,15 +3,27 @@
   "properties": {
     "allowlist": {
       "title": "Allowlisted sites",
-      "description": "Hostnames where ClickFix Guard is switched off entirely. Each entry also covers its subdomains (github.com covers gist.github.com). Replaces the built-in list when set.",
+      "description": "Hostnames where ClickFix Guard is switched off entirely, ADDED to the built-in list (AI assistants, translation tools, dev docs...). Each entry also covers its subdomains (github.com covers gist.github.com). Entries inside neverAllowlist have no effect.",
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "neverAllowlist": {
       "title": "Sites users can never trust",
-      "description": "Free/multi-tenant hosting domains (pages.dev, sites.google.com, ...). The banner's 'Trust this site' button is hidden on them and user-trusted entries never cover them. Replaces the built-in list when set.",
+      "description": "Hosts that are always scanned, ADDED to the built-in list (pages.dev, sites.google.com, ...). Wins over every allowlist, and the banner's 'Trust this site' button is hidden there.",
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
+    },
+    "removeFromBuiltin": {
+      "title": "Remove built-in entries",
+      "description": "Exact hostnames to take out of the built-in allowlist or neverAllowlist. Use sparingly: removing a neverAllowlist entry lets that multi-tenant host be allowlisted and trusted.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "threshold": {
       "title": "Warning threshold",
@@ -30,6 +42,11 @@
       "description": "Optional HTTPS endpoint that receives a POST for every detection. A Slack incoming webhook (https://hooks.slack.com/services/...) gets a formatted message with the page URL defanged; any other URL gets the raw JSON (page URL, score, indicators, time).",
       "type": "string",
       "sensitiveValue": true
+    },
+    "includeUserEmail": {
+      "title": "Include the user's email in webhook messages",
+      "description": "Adds the email of the account signed in to Chrome to each webhook message. Personal data, sent next to the page URL - review before enabling. Default false.",
+      "type": "boolean"
     }
   }
 }
