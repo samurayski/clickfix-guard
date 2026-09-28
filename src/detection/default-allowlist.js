@@ -9,20 +9,37 @@
 // (AI coding assistants, dev docs, package registries, Q&A sites) — not a
 // guarantee. Read the NEVER_ALLOWLIST block at the bottom before adding more.
 (function () {
+  // Vendor apexes (openai.com, anthropic.com, claude.com) cover their own
+  // docs/consoles too — e.g. code.claude.com's install page, whose
+  // "curl … | bash" copy button was a reported false positive. Only the
+  // vendors' own hosts: generated previews and shared artifacts run in
+  // iframes on separate user-content domains (claudeusercontent.com etc.),
+  // which stay scanned — anyone can publish content there.
   const AI_ASSISTANTS = [
-    "chat.openai.com",
     "chatgpt.com",
-    "platform.openai.com",
+    "openai.com",
     "claude.ai",
-    "console.anthropic.com",
-    "docs.anthropic.com",
+    "claude.com",
+    "anthropic.com",
     "gemini.google.com",
+    "aistudio.google.com",
+    "ai.google.dev",
     "copilot.microsoft.com",
+    "m365.cloud.microsoft",
+    "chat.deepseek.com",
+    "chat.mistral.ai",
+    "grok.com",
     "huggingface.co",
     "perplexity.ai",
     "poe.com",
     "you.com",
   ];
+
+  // Translation tools copy back whatever the user put in — translate an IT
+  // article and the "copy translation" button writes a PowerShell command to
+  // the clipboard, exactly like a lure. translate.goog (Google's proxy for
+  // translated third-party SITES) is on NEVER_ALLOWLIST instead.
+  const TRANSLATION = ["translate.google.com", "deepl.com"];
 
   const DEV_DOCS = [
     "developer.mozilla.org",
@@ -62,14 +79,19 @@
   const PRODUCTIVITY = ["office.com", "outlook.com", "teams.microsoft.com", "slack.com", "zoom.us"];
 
   // Free/user-content hosting platforms that attackers already abuse to host
-  // phishing/ClickFix pages behind a trusted-looking apex domain. These are
-  // never on the allowlist, and — unlike the list above, which only seeds
-  // the built-in defaults — this one is also enforced: the banner's "Trust
-  // this site" button is hidden on them and a user-added entry that matches
-  // one is ignored (see policy-core.js). Otherwise a lure hosted here could
-  // simply tell the visitor to click "Trust this site" and silence itself.
-  // The Admin console can replace this list (neverAllowlist).
+  // phishing/ClickFix pages behind a trusted-looking apex domain. This list is
+  // enforced, and it wins over the allowlists (see isHostAllowlisted in
+  // policy-core.js): a host here is scanned even if an admin allowlists a
+  // broader entry like "google.com", and the banner's "Trust this site"
+  // button is hidden on it — otherwise a lure hosted here could simply tell
+  // the visitor to click it and silence itself. The Admin console can replace
+  // this list (neverAllowlist).
   const NEVER_ALLOWLIST = [
+    // user content served by AI tools: shared artifacts, generated previews, Spaces
+    "claudeusercontent.com",
+    "oaiusercontent.com",
+    "usercontent.goog",
+    "hf.space",
     "github.io",
     "gitlab.io",
     "pages.dev",
@@ -103,11 +125,13 @@
     "blob.core.windows.net",
     "s3.amazonaws.com",
   ];
-  // Do not add these (or their parent apex, e.g. plain "google.com") to the
-  // allowlist without understanding that anyone can publish a page there.
+  // Allowlisting one of these (or a parent like plain "google.com") has no
+  // effect on the hosts listed here; take a host off this list only with the
+  // understanding that anyone can publish a page there.
 
   globalThis.__CFG_DEFAULT_ALLOWLIST__ = [
     ...AI_ASSISTANTS,
+    ...TRANSLATION,
     ...DEV_DOCS,
     ...CODE_HOSTING_AND_PACKAGES,
     ...QA_COMMUNITIES,

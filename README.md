@@ -260,20 +260,29 @@ settings or the built-in defaults are in effect.
 
 ### Allowlist semantics
 
-- **Admin allowlist** (`allowlist`) is authoritative and matches the hostname
-  and its subdomains. On an allowlisted host the extension turns itself off —
-  no scanning, no scoring.
+- **`neverAllowlist`** is checked first, against the host being visited, and
+  wins over both allowlists. It holds free and multi-tenant hosting domains —
+  `github.io`, `pages.dev`, `workers.dev`, `netlify.app`, `vercel.app`,
+  `sites.google.com`, `translate.goog`, `notion.site`, `web.app`,
+  `azurewebsites.net` and similar — plus the user-content domains AI tools
+  serve shared artifacts and generated previews from (`claudeusercontent.com`,
+  `oaiusercontent.com`, `usercontent.goog`, `hf.space`). These are exactly what
+  attackers use to put a ClickFix page behind a trustworthy-looking domain. So
+  an admin allowlisting `google.com`, or a user trusting it, still leaves
+  `sites.google.com` scanned; an allowlist entry that falls entirely inside it
+  is listed as ignored in the popup. Taking a host off `neverAllowlist` is the
+  only way to allowlist it — a deliberate decision, not a side effect.
+- **Admin allowlist** (`allowlist`) matches the hostname and its subdomains. On
+  an allowlisted host the extension turns itself off — no scanning, no scoring.
+  It applies per frame: allowlisting `claude.ai` doesn't silence a shared
+  artifact embedded from `claudeusercontent.com`, because anyone can publish
+  one.
 - **User trust** (the banner's "Trust this site", see below) is exact-hostname
-  only, only counts while `allowUserTrust` is `true`, and never applies to a
-  host matching `neverAllowlist` — checked against the host being visited, so
-  trusting an apex like `google.com` still can't silence `sites.google.com`.
-- **`neverAllowlist`** holds free and multi-tenant hosting domains — `github.io`,
-  `pages.dev`, `workers.dev`, `netlify.app`, `vercel.app`, `sites.google.com`,
-  `translate.goog`, `notion.site`, `web.app`, `azurewebsites.net` and similar.
-  These are exactly what attackers use to put a ClickFix page behind a
-  trustworthy-looking domain; without this list a lure there could simply tell
-  the visitor to click "Trust this site". Bare apexes like `google.com` stay off
-  the admin allowlist for the same reason.
+  only and only counts while `allowUserTrust` is `true`.
+- Allowlisting an AI assistant's own host has a known cost: a lure posted as a
+  *shared chat* on that host (instructions plus a command in a code block) is
+  not scanned. The clipboard still ends up with the command; the EDR rules
+  under [Defence in depth](#defence-in-depth) are what catches it after that.
 
 ### Trusting a site from the banner (pilot)
 

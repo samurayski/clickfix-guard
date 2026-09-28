@@ -68,7 +68,7 @@
     "description": "Admin console politikası yürürlükteyken popup alt bilgisi."
   },
   "popupPolicyIgnored": {
-    "message": "Geçersiz olduğu için yok sayılan politika girdileri: $ENTRIES$",
+    "message": "Etkisiz kalan politika girdileri: $ENTRIES$",
     "description": "Admin console'daki geçersiz girdileri listeleyen popup alt bilgisi.",
     "placeholders": {
       "entries": {

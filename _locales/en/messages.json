@@ -68,7 +68,7 @@
     "description": "Popup footer when the Admin console policy is in effect."
   },
   "popupPolicyIgnored": {
-    "message": "Ignored invalid policy entries: $ENTRIES$",
+    "message": "Policy entries with no effect: $ENTRIES$",
     "description": "Popup footer listing Admin console entries that were invalid.",
     "placeholders": {
       "entries": {

@@ -93,6 +93,12 @@
       if (typeof m.allowUserTrust === "boolean") policy.allowUserTrust = m.allowUserTrust;
       else ignored.push("allowUserTrust: " + JSON.stringify(m.allowUserTrust));
     }
+    // neverAllowlist wins over the allowlist (see isHostAllowlisted), so an
+    // allowlist entry that sits entirely inside it has no effect. Say so in
+    // the popup rather than let the admin believe it's active.
+    for (const h of policy.allowlist) {
+      if (matchesAny(h, policy.neverAllowlist)) ignored.push("allowlist: " + JSON.stringify(h) + " (neverAllowlist)");
+    }
     return policy;
   }
 
@@ -113,16 +119,19 @@
     return list.some((e) => hostMatches(host, e));
   }
 
-  // The admin allowlist is authoritative and matches subdomains. A user's own
-  // "Trust this site" entries are deliberately narrower: exact hostname only,
-  // only while the policy allows user trust at all, and never for a host on
-  // neverAllowlist — checked against the host being visited, so trusting an
-  // apex like "google.com" still can't silence sites.google.com.
+  // neverAllowlist is checked first and against the host being visited, so it
+  // holds even against a broad entry: allowlisting "google.com" (by an admin)
+  // or trusting it (by a user) still can't silence sites.google.com. To really
+  // allowlist something on it, an admin has to take it off neverAllowlist —
+  // a deliberate decision rather than a side effect.
+  // The admin allowlist matches subdomains. A user's own "Trust this site"
+  // entries are narrower: exact hostname only, and only while the policy
+  // allows user trust at all.
   function isHostAllowlisted(host, policy, userAllowlist) {
     if (!host) return false;
+    if (matchesAny(host, policy.neverAllowlist)) return false;
     if (matchesAny(host, policy.allowlist)) return true;
     if (!policy.allowUserTrust) return false;
-    if (matchesAny(host, policy.neverAllowlist)) return false;
     return (userAllowlist || []).includes(host);
   }
 
