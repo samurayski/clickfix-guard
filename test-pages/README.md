@@ -66,14 +66,13 @@ org unit in the Admin console containing only a test machine; on that machine,
 *Reload policies* on `chrome://policy` applies the change immediately, and the
 extension's own entry on that page shows exactly which values arrived.
 
-The allowlist only accepts hostnames with at least two labels, so `localhost`
-can't be allowlisted. To watch an allowlist entry take effect on these pages,
-serve them under a two-label name such as `http://127.0.0.1.nip.io:8000/`
-(public wildcard DNS that resolves to 127.0.0.1) and allowlist
-`127.0.0.1.nip.io`. That origin isn't a secure context, so the async Clipboard
-API is unavailable there — use level 1 (text only) or level 6B (copy event) for
-this check. The popup footer says whether the organization's settings are in
-effect and lists any entry that was rejected as invalid.
+To watch an allowlist entry take effect on these pages, allowlist `localhost`
+in a test policy and reload a level: the banner should stop firing. If your
+organization's policy already allowlists `localhost` (common, for developers'
+local apps), these pages are silent there — open them as
+`http://127.0.0.1:8000/…` instead, which is a different host to the extension
+and still a secure context. The popup footer says whether the organization's
+settings are in effect and lists any entry that has no effect.
 
 ## Known limitation
 

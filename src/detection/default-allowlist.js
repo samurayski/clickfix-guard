@@ -43,6 +43,7 @@
 
   const DEV_DOCS = [
     "developer.mozilla.org",
+    "brew.sh",
     "learn.microsoft.com",
     "docs.microsoft.com",
     "cloud.google.com",
@@ -73,10 +74,26 @@
 
   const QA_COMMUNITIES = ["stackoverflow.com", "superuser.com", "serverfault.com", "askubuntu.com"];
 
-  // Single-tenant-style product domains with no general-purpose user content
-  // hosting on these exact hosts — lower risk than the "do NOT allowlist"
-  // category below.
-  const PRODUCTIVITY = ["office.com", "outlook.com", "teams.microsoft.com", "slack.com", "zoom.us"];
+  // Products where only the vendor's own JavaScript runs: a document, mail or
+  // chat message there can contain text telling someone to paste a command,
+  // but it can't run script to put one on the clipboard. What does fire there
+  // is people copying their own content — a runbook with a curl line, a cell
+  // holding a token — and Google Docs/Sheets render on a canvas, so the
+  // "user copied their own selection" check in content.js can't see what was
+  // selected. Listed by exact product host; never a bare apex like google.com.
+  const PRODUCTIVITY = [
+    "office.com",
+    "outlook.com",
+    "teams.microsoft.com",
+    "slack.com",
+    "zoom.us",
+    "docs.google.com",
+    "mail.google.com",
+    "chat.google.com",
+    "www.google.com",
+    "app.notion.com",
+    "notion.so",
+  ];
 
   // Free/user-content hosting platforms that attackers already abuse to host
   // phishing/ClickFix pages behind a trusted-looking apex domain. This list is

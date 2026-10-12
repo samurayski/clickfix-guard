@@ -19,6 +19,20 @@
 
   const ZERO_WIDTH_RE = new RegExp("[\\u200B-\\u200D\\uFEFF]", "g");
 
+  // about:blank and srcdoc frames have an empty location.hostname but run with
+  // their creator's origin — rich-text editors and Google Docs' input frames
+  // live in such frames. Judge them by that origin, or no allowlist could ever
+  // match them.
+  const HOST = (function () {
+    if (location.hostname) return location.hostname;
+    try {
+      return new URL(self.origin).hostname;
+    } catch (e) {
+      return "";
+    }
+  })();
+  const PAGE_URL = location.hostname || !HOST ? location.href : self.origin + "/#" + location.href;
+
   function normalize(str) {
     // NFKC folds full-width/homoglyph tricks like "Ｗｉｎ+Ｒ" back to "Win+R",
     // and we strip zero-width chars used to split keywords mid-string.
@@ -57,6 +71,8 @@
   offerPort();
   window.addEventListener("click", onVerifyClick, true);
   window.addEventListener("keydown", onVerifyKeydown, true);
+  window.addEventListener("copy", onCopyEvent, true);
+  window.addEventListener("cut", onCopyEvent, true);
 
   function deactivate() {
     active = false;
@@ -65,6 +81,8 @@
     window.removeEventListener("message", onMainReady, true);
     window.removeEventListener("click", onVerifyClick, true);
     window.removeEventListener("keydown", onVerifyKeydown, true);
+    window.removeEventListener("copy", onCopyEvent, true);
+    window.removeEventListener("cut", onCopyEvent, true);
     stopScanning();
   }
 
@@ -134,7 +152,7 @@
     try {
       chrome.runtime.sendMessage({
         type: "clickfix-detection",
-        url: location.href,
+        url: PAGE_URL,
         score,
         indicators: Array.from(matched),
       });
@@ -145,7 +163,7 @@
 
   function onClipboardWrite(data) {
     if (!active || !data || typeof data.method !== "string" || typeof data.text !== "string") return;
-    const entry = { method: data.method, text: data.text, at: Date.now() };
+    const entry = { method: data.method, text: data.text, scripted: data.scripted === true, at: Date.now() };
     if (!configReady) {
       if (pendingClipboard.length < MAX_PENDING) pendingClipboard.push(entry);
       return;
@@ -153,9 +171,72 @@
     scoreClipboard(entry);
   }
 
-  function scoreClipboard({ method, text, at }) {
+  // ---- "the user copied what they had selected" ----------------------------------
+  //
+  // Web apps with their own copy handling (Notion, Jira, GitLab, wikis…) fill
+  // event.clipboardData themselves on every Ctrl+C — the same API a pastejacking
+  // page uses. The difference is WHAT they put there: the app writes the text
+  // the user selected; a pastejacker writes something else. So a copy is the
+  // user's own, and not scored, when all of these hold:
+  //   - the copy/cut event is trusted (a real key press or menu command; a page
+  //     dispatching its own ClipboardEvent is not);
+  //   - it wasn't fired by the page calling document.execCommand("copy");
+  //   - the text written is, in order, (almost entirely) made of the words the
+  //     user had selected on screen at that moment.
+  // That is exactly the case where a plain browser copy would have put the
+  // same text on the clipboard with no page code involved at all.
+  // Canvas-rendered editors (Google Docs/Sheets) have no DOM selection to
+  // compare with, so this can't vouch for them; they're on the allowlist.
+
+  const OWN_COPY_WINDOW_MS = 2000;
+  const TOKEN_RE = /[\p{L}\p{N}]+/gu;
+  let lastUserCopy = null;
+
+  function onCopyEvent(ev) {
+    if (!active) return;
+    let selection = "";
+    try {
+      selection = String(window.getSelection() || "");
+    } catch (e) {}
+    lastUserCopy = { at: Date.now(), trusted: ev.isTrusted === true, selection };
+  }
+
+  function tokensOf(str) {
+    return normalize(str).toLowerCase().match(TOKEN_RE) || [];
+  }
+
+  // True when at least 90% of `text`'s words appear in `selection` in the same
+  // order. Order matters: it stops a page from assembling a command out of
+  // words scattered through a long selected passage.
+  function isMadeOfSelection(text, selection) {
+    const want = tokensOf(text);
+    const have = tokensOf(selection);
+    if (!want.length || !have.length) return false;
+    let found = 0;
+    let j = 0;
+    for (const w of want) {
+      let k = j;
+      while (k < have.length && have[k] !== w) k++;
+      if (k < have.length) {
+        found++;
+        j = k + 1;
+      }
+    }
+    return found / want.length >= 0.9;
+  }
+
+  function isOwnSelection({ method, text, scripted, at }) {
+    if (scripted || !method.startsWith("clipboardData.")) return false;
+    const c = lastUserCopy;
+    if (!c || !c.trusted || at - c.at > OWN_COPY_WINDOW_MS || at < c.at) return false;
+    return isMadeOfSelection(text, c.selection);
+  }
+
+  function scoreClipboard(entry) {
+    const { method, text, at } = entry;
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (isOwnSelection(entry)) return;
     const label = "clipboard:" + method;
     if (CLIPBOARD_SUSPICIOUS.test(normalize(trimmed))) {
       // Content itself names a LOLBin/command — strongest signal, always counts.
@@ -163,12 +244,14 @@
       return;
     }
     if (looksLikeOpaqueBlob(trimmed)) {
-      // Looks like an encoded payload blob even without a readable keyword.
+      // Looks like an encoded blob. On its own that's weak evidence — a bare
+      // blob isn't a runnable command, and "copy API key / token" buttons
+      // write exactly this — so it stays under the threshold unless the page
+      // also shows paste instructions or it follows a verification click.
       addScore(label + ":opaque", WEIGHTS.clipboardOpaqueBlob);
-      return;
     }
     if (at - lastVerifyClickAt <= VERIFY_CLICK_WINDOW_MS) {
-      // No keyword, no visible blob shape — but it was written silently right
+      // No keyword — but it was written silently right
       // after clicking something that looks like a CAPTCHA/verification
       // control. Real sites never need to copy anything for that; this is
       // the pattern used by loaders that fetch and decode the payload at
@@ -270,7 +353,7 @@
     // the host is on neverAllowlist (a lure hosted on e.g. pages.dev could
     // otherwise just tell the visitor to click it). Gated behind a native
     // confirm() — one misclick here silences this hostname for good.
-    if (POLICY.canUserTrust(location.hostname, policy)) {
+    if (POLICY.canUserTrust(HOST, policy)) {
       const trust = document.createElement("button");
       trust.className = "trust";
       trust.textContent = chrome.i18n.getMessage("bannerAllowlistButton");
@@ -330,7 +413,7 @@
   }
 
   function requestTrust(button, status) {
-    const host = location.hostname;
+    const host = HOST;
     if (!window.confirm(chrome.i18n.getMessage("bannerAllowlistConfirm", [host]))) return;
     button.disabled = true;
     // The service worker does the write (and re-checks the policy against the
@@ -358,7 +441,7 @@
       // syncManagedPolicy there); checked here only as a guard against a
       // corrupt entry.
       policy = POLICY.sanitizeStoredPolicy(cfg.policy) || POLICY.builtinPolicy();
-      if (POLICY.isHostAllowlisted(location.hostname, policy, cfg.userAllowlist)) {
+      if (POLICY.isHostAllowlisted(HOST, policy, cfg.userAllowlist)) {
         deactivate();
         return;
       }

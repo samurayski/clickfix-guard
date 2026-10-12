@@ -78,8 +78,14 @@
   const queue = [];
   const MAX_QUEUE = 200;
 
+  // > 0 while a page-initiated document.execCommand("copy"/"cut") is running:
+  // the copy event being handled then was fired by script, not by the user's
+  // own Ctrl+C or menu. content.js uses this to tell "the user copied what
+  // they selected" from a scripted copy (see isOwnSelection there).
+  let execCopyDepth = 0;
+
   function send(method, text) {
-    const msg = { method: method, text: text };
+    const msg = { method: method, text: text, scripted: execCopyDepth > 0 };
     if (ports.length === 0) {
       if (queue.length < MAX_QUEUE) queue[queue.length] = msg;
       return;
@@ -303,7 +309,15 @@
             if (args.length > 0) {
               args[0] = S(args[0]);
               const cmd = apply(toLower, args[0], []);
-              if (cmd === "copy" || cmd === "cut") send("execCommand." + cmd, selectionText(this));
+              if (cmd === "copy" || cmd === "cut") {
+                send("execCommand." + cmd, selectionText(this));
+                execCopyDepth++;
+                try {
+                  return apply(orig, this, args);
+                } finally {
+                  execCopyDepth--;
+                }
+              }
             }
             return apply(orig, this, args);
           },

@@ -187,8 +187,21 @@ function slackEscape(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+const SLACK_LABELS = {
+  slackTitle: "ClickFix Guard detection",
+  slackPage: "Page",
+  slackScore: "Score",
+  slackIndicators: "Indicators",
+  slackTime: "Time",
+  slackUser: "User",
+  slackDevice: "Browser",
+};
+
 function slackMessage(entry) {
-  const t = (key) => chrome.i18n.getMessage(key);
+  // chrome.i18n.getMessage has been seen to return "" in the service worker
+  // (messages arrived in Slack with every label missing), so each label has a
+  // built-in fallback.
+  const t = (key) => chrome.i18n.getMessage(key) || SLACK_LABELS[key] || key;
   let host = "";
   try {
     host = new URL(entry.url).hostname;
@@ -219,10 +232,14 @@ function slackMessage(entry) {
 // content script's view of it may be stale, and this is the one place that
 // decides what gets written.
 async function handleAllowlistAdd(msg, sender) {
+  // about:blank / srcdoc frames have no hostname in their URL but run with
+  // their creator's origin — same rule as HOST in content.js.
   let host = "";
-  try {
-    host = new URL(sender.url).hostname;
-  } catch (e) {}
+  for (const candidate of [sender.url, sender.origin]) {
+    try {
+      host = host || new URL(candidate).hostname;
+    } catch (e) {}
+  }
 
   const result = await withStorageLock(async () => {
     const cfg = await chrome.storage.local.get({ policy: null, userAllowlist: [], allowlistLog: [] });

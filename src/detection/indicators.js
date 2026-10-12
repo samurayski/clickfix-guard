@@ -4,7 +4,7 @@
   const WEIGHTS = {
     text: 1,
     clipboard: 6, // clipboard write whose content matches a known LOLBin/command keyword
-    clipboardOpaqueBlob: 5, // clipboard write of an opaque base64-looking blob, no keyword needed
+    clipboardOpaqueBlob: 3, // opaque base64-looking blob: supporting evidence only, below the threshold on its own
     clipboardAfterVerifyClick: 4, // silent clipboard write immediately after a fake-verification click
     captchaUi: 2,
   };

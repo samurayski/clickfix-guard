@@ -33,6 +33,7 @@ src/
                                    detections, owns all storage writes, webhook
   popup/                         → recent detections, trusted sites, policy source
 managed_schema.json              → the settings the Admin console can set
+tests/e2e.py                     → end-to-end tests against the real extension (not packed)
 ```
 
 ### Why one layer isn't enough
@@ -62,12 +63,27 @@ The clipboard signal is graded, not binary:
 | Signal | Weight | Fires when |
 |---|---|---|
 | `clipboard` | 6 | The copied text matches a LOLBin/command keyword |
-| `clipboardOpaqueBlob` | 5 | No keyword, but a single whitespace-free *token* of ≥40 base64-alphabet characters containing a digit or mixed case — an opaque encoded payload rather than a readable command |
-| `clipboardAfterVerifyClick` | 4 | No keyword and no blob shape, but written silently within 800 ms of a click (or Enter/Space) on a control that looks like a verification/CAPTCHA widget |
+| `clipboardOpaqueBlob` | 3 | No keyword, but a single whitespace-free *token* of ≥40 base64-alphabet characters containing a digit or mixed case. Supporting evidence only: a bare blob isn't a runnable command and "copy API key / token" buttons write exactly this, so on its own it stays under the threshold |
+| `clipboardAfterVerifyClick` | 4 | No keyword, but written silently within 800 ms of a click (or Enter/Space) on a control that looks like a verification/CAPTCHA widget. Adds to `clipboardOpaqueBlob` (3 + 4 crosses the threshold) |
 
 If none of the three match — a documentation site's "copy the install command"
 button, for example — nothing is scored. That is deliberate; scoring it produces
 far too many false positives on developer-facing sites.
+
+**A user copying what they selected is not a clipboard write.** Web apps with
+their own copy handling (Notion, Jira, GitLab, wikis…) fill
+`event.clipboardData` themselves on every Ctrl+C — the same API a pastejacking
+page uses — and people copy runbooks with `curl` lines and cells holding tokens
+all day. The difference is *what* gets written: the app writes the text the
+user selected, a pastejacker writes something else. So a copy is not scored
+when the copy event is trusted (a real key press or menu command), it wasn't
+fired by the page calling `execCommand("copy")`, and the text written is, in
+order, at least 90% made of the words selected on screen at that moment — the
+case where a plain browser copy would have produced the same clipboard with no
+page code involved. Anything else (a swapped payload, a page-dispatched copy
+event, a scripted copy) is scored as before. Canvas-rendered editors such as
+Google Docs and Sheets have no DOM selection to compare against; those are
+covered by the allowlist instead.
 
 There is no settings UI in the extension. The threshold, the allowlists and the
 webhook are set centrally from the Admin console (see
@@ -247,6 +263,7 @@ entry out is a separate, explicit key. (Up to 0.4.2 a list set in the Admin
 console *replaced* the built-in one.)
 
 Hostnames are forgiving about case, whitespace, a leading `*.` or a pasted URL.
+`localhost` is accepted as a special case, for developers' local apps.
 An entry that has no effect — not a hostname with at least two labels (`"com"`
 would allowlist every `.com` site), an allowlist entry inside `neverAllowlist`,
 a `removeFromBuiltin` entry that isn't built in — is listed in the popup, so a
@@ -303,7 +320,9 @@ settings or the built-in defaults are in effect.
   decision, not a side effect.
 - **Admin allowlist** (`allowlist`) matches the hostname and its subdomains. On
   an allowlisted host the extension turns itself off — no scanning, no scoring.
-  It applies per frame: allowlisting `claude.ai` doesn't silence a shared
+  `about:blank` and `srcdoc` frames (rich-text editors live in these) count as
+  the host that created them. Otherwise it
+  applies per frame: allowlisting `claude.ai` doesn't silence a shared
   artifact embedded from `claudeusercontent.com`, because anyone can publish
   one.
 - **User trust** (the banner's "Trust this site", see below) is exact-hostname
@@ -332,6 +351,17 @@ those defaults for that user; 0.4.0 migrates the user-added part over.) Setting
 everything users trusted earlier — the switch for ending the pilot, or for
 reviewing `allowlistLog` entries and promoting the legitimate ones to the admin
 allowlist.
+
+## Tests
+
+`python3 tests/e2e.py` loads the unpacked extension into Chrome for Testing
+(downloaded once into `~/.cache/clickfix-guard/`; branded Chrome no longer
+accepts `--load-extension`) and drives it over the DevTools protocol: every
+test-page level, the allowlist rules on real-looking hostnames (all resolved to
+a local HTTPS server), own-selection vs pastejacking with a real Cmd+C, the
+trust button with a real click, and a check that every copy technique still
+reaches the clipboard through the hooks. Standard library only; `-k name` runs
+one group. `tests/` is `export-ignore`d, so it isn't in the packed extension.
 
 ## Install
 

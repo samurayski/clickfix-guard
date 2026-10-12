@@ -26,8 +26,10 @@
   // rejected on purpose: "com" would allowlist every .com site.
   const HOST_RE = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
+  // "localhost" is the one single-label name worth allowlisting: developers'
+  // own local apps (Swagger UIs, dev servers) copy commands all day.
   function isValidHost(h) {
-    return typeof h === "string" && HOST_RE.test(h);
+    return typeof h === "string" && (HOST_RE.test(h) || h === "localhost");
   }
 
   // Admins type these by hand, so be forgiving about case, surrounding
