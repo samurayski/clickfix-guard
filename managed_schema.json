@@ -43,6 +43,11 @@
       "type": "string",
       "sensitiveValue": true
     },
+    "includeClipboardText": {
+      "title": "Include the copied text in webhook messages",
+      "description": "Adds the text the page put on the clipboard (the command, first 500 characters) to each webhook message. On a false positive this is what the person copied themselves, which can be personal or confidential - send it only to a restricted channel. Default false.",
+      "type": "boolean"
+    },
     "includeUserEmail": {
       "title": "Include the user's email in webhook messages",
       "description": "Adds the email of the account signed in to Chrome to each webhook message. Personal data, sent next to the page URL - review before enabling. Default false.",

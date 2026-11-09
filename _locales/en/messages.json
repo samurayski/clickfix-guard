@@ -101,6 +101,15 @@
     "message": "User",
     "description": "Field label in the Slack detection message."
   },
+  "slackClipboard": {
+    "message": "Copied text",
+    "description": "Field label in the Slack detection message: the text the page put on the clipboard."
+  },
+  "slackClipboardTruncated": {
+    "message": "first $COUNT$ characters",
+    "description": "Shown next to slackClipboard when the text was cut.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
   "slackDevice": {
     "message": "Browser",
     "description": "Field label in the Slack detection message."

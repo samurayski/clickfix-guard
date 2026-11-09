@@ -58,6 +58,10 @@
     "docs.python.org",
     "doc.rust-lang.org",
     "developer.apple.com",
+    // install pages whose copy button puts a `curl ... | sh` line on the clipboard
+    "ollama.com",
+    "opencode.ai",
+    "antigravity.google",
   ];
 
   const CODE_HOSTING_AND_PACKAGES = [
@@ -93,6 +97,8 @@
     "www.google.com",
     "app.notion.com",
     "notion.so",
+    "web.whatsapp.com",
+    "console.aws.amazon.com",
   ];
 
   // Free/user-content hosting platforms that attackers already abuse to host

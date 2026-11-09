@@ -101,6 +101,15 @@
     "message": "Kullanıcı",
     "description": "Field label in the Slack detection message."
   },
+  "slackClipboard": {
+    "message": "Kopyalanan metin",
+    "description": "Field label in the Slack detection message: the text the page put on the clipboard."
+  },
+  "slackClipboardTruncated": {
+    "message": "ilk $COUNT$ karakter",
+    "description": "Shown next to slackClipboard when the text was cut.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
   "slackDevice": {
     "message": "Tarayıcı",
     "description": "Field label in the Slack detection message."

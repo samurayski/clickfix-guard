@@ -8,6 +8,7 @@ const ICONS = {
 };
 
 const MAX_LOG = 200;
+const MAX_CLIPBOARD_TEXT = 500;
 const MAX_USER_ALLOWLIST = 500;
 
 // ---- serialized storage writes -----------------------------------------------
@@ -106,7 +107,10 @@ function handleDetection(msg, sender) {
     await chrome.storage.local.set({ log: log.concat([entry]).slice(-MAX_LOG) });
   });
 
-  postWebhook(entry);
+  // The clipboard text is not kept in the log: it can be a person's own
+  // content (a false positive), so it only leaves in the webhook message, and
+  // only when the Admin console asks for it.
+  postWebhook(entry, typeof msg.clipboardText === "string" ? msg.clipboardText : "");
 
   if (sender.tab && sender.tab.id != null) {
     // The toolbar icon stays neutral (icons/idle) at rest — only the tab that
@@ -120,7 +124,7 @@ function handleDetection(msg, sender) {
 
 // The Admin console's webhookUrl (HTTPS only) wins over the older local
 // `webhookUrl` storage key.
-async function postWebhook(entry) {
+async function postWebhook(entry, clipboardText) {
   const managed = await readManaged();
   let url = "";
   if (typeof managed.webhookUrl === "string" && /^https:\/\//i.test(managed.webhookUrl)) {
@@ -129,7 +133,7 @@ async function postWebhook(entry) {
     url = (await chrome.storage.local.get({ webhookUrl: "" })).webhookUrl;
   }
   if (!url) return;
-  const payload = Object.assign({}, entry, await reporterContext(managed));
+  const payload = Object.assign({}, entry, await reporterContext(managed), clipboardFields(managed, clipboardText));
   fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -160,6 +164,16 @@ async function reporterContext(managed) {
   return ctx;
 }
 
+// What the page put on the clipboard — the command an analyst wants to see.
+// Off unless the Admin console sets includeClipboardText: on a false positive
+// it is whatever the person copied.
+function clipboardFields(managed, text) {
+  if (managed.includeClipboardText !== true || !text) return {};
+  const fields = { clipboardText: text.slice(0, MAX_CLIPBOARD_TEXT) };
+  if (text.length > MAX_CLIPBOARD_TEXT) fields.clipboardTextTruncated = true;
+  return fields;
+}
+
 function getInstallId() {
   return withStorageLock(async () => {
     const { installId } = await chrome.storage.local.get({ installId: "" });
@@ -183,6 +197,11 @@ function defang(url) {
   return String(url).slice(0, 300).replace(/^http/i, "hxxp").replace(/\./g, "[.]").replace(/`/g, "'");
 }
 
+// URLs inside a copied command get the same treatment as the page URL.
+function defangUrls(text) {
+  return String(text).replace(/\bhttps?:\/\/[^\s"'`<>()]+/gi, (u) => u.replace(/^http/i, "hxxp").replace(/\./g, "[.]"));
+}
+
 function slackEscape(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -195,13 +214,16 @@ const SLACK_LABELS = {
   slackTime: "Time",
   slackUser: "User",
   slackDevice: "Browser",
+  slackClipboard: "Copied text",
+  slackClipboardTruncated: "first $1 characters",
 };
 
 function slackMessage(entry) {
   // chrome.i18n.getMessage has been seen to return "" in the service worker
   // (messages arrived in Slack with every label missing), so each label has a
   // built-in fallback.
-  const t = (key) => chrome.i18n.getMessage(key) || SLACK_LABELS[key] || key;
+  const t = (key, sub) =>
+    chrome.i18n.getMessage(key, sub) || (SLACK_LABELS[key] || key).replace("$1", sub);
   let host = "";
   try {
     host = new URL(entry.url).hostname;
@@ -219,9 +241,20 @@ function slackMessage(entry) {
       "ClickFix Guard " + entry.extensionVersion, "ID " + entry.installId.slice(0, 8)].filter(Boolean);
     lines.push("*" + t("slackDevice") + ":* " + slackEscape(device.join(" · ")));
   }
+  const blocks = [{ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } }];
+  if (entry.clipboardText) {
+    // A code block, in its own section so 500 escaped characters can't push
+    // the message past Slack's 3000-character limit. The text is the
+    // attacker's: escaping stops it from mentioning @channel or making links,
+    // and a ``` inside it would close the block early, so it is broken up.
+    const label = "*" + t("slackClipboard") + ":*" +
+      (entry.clipboardTextTruncated ? " _(" + t("slackClipboardTruncated", String(MAX_CLIPBOARD_TEXT)) + ")_" : "");
+    const code = slackEscape(defangUrls(entry.clipboardText)).replace(/```/g, "`\u200b``");
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: label + "\n```" + code + "```" } });
+  }
   return {
     text: "🚨 " + t("slackTitle") + ": " + slackEscape(defang(host || entry.url)),
-    blocks: [{ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } }],
+    blocks,
     unfurl_links: false,
     unfurl_media: false,
   };

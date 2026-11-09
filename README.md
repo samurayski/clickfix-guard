@@ -253,6 +253,8 @@ select the org unit → *ClickFix Guard* → **Policy for extensions**:
 | `threshold` | 1–100 | 5 | Score at which the banner shows |
 | `allowUserTrust` | bool | `true` | Pilot switch for "Trust this site" |
 | `webhookUrl` | HTTPS URL | — | See below |
+| `includeUserEmail` | bool | `false` | Adds the Chrome account's email to webhook messages |
+| `includeClipboardText` | bool | `false` | Adds the copied text (the command) to webhook messages |
 
 The keys are declared in `managed_schema.json`, and every key is optional. The
 lists are **additive**: the Admin console only needs the organization's own
@@ -276,7 +278,7 @@ Because policy can differ per org unit, the pilot group can have
 there. A Slack incoming webhook (`https://hooks.slack.com/services/...`) gets a
 formatted message; any other URL gets the raw JSON (`url`, `score`,
 `indicators`, `tabId`, `time`, `installId`, `platform`, `chromeVersion`,
-`extensionVersion`, and `user` when enabled) for a SIEM or HTTP collector.
+`extensionVersion`, and `user` / `clipboardText` when enabled) for a SIEM or HTTP collector.
 The page URL in the Slack message is defanged (`hxxps://lure[.]example`) and in
 code formatting, and link unfurling is off, so nobody in the channel clicks
 through to the lure and Slack's servers don't fetch it.
@@ -291,6 +293,16 @@ It needs the `identity.email` permission, which Chrome grants without a prompt
 for force-installed extensions; a user-installed copy would ask on update.
 Without it, the SOC can still find the person by matching the message's time and
 URL against proxy/DNS logs.
+
+*What was copied:* with `includeClipboardText: true`, the text the page put on
+the clipboard (the clipboard write that added to the score) is added as
+`clipboardText`, cut to its first 500 characters (`clipboardTextTruncated` then
+says so). In Slack it is a code block with its URLs defanged and `<`, `>`, `&`
+escaped, so the attacker's text can't ping `@channel` or make a link. On a false
+positive this is what the person copied themselves — a query, a token, customer
+data — so it's off by default, it is never written to the extension's own log,
+and it belongs only in a restricted channel. Detections from page text alone
+have no copied text.
 
 The webhook URL is distributed to every managed browser, so
 treat it as semi-public: `managed_schema.json` marks it `sensitiveValue`

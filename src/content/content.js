@@ -12,10 +12,12 @@
   let observer = null;
   let scanTimer = 0;
   let lastVerifyClickAt = 0;
+  let clipboardEvidence = ""; // the clipboard text that last added to the score
   const pendingClipboard = [];
   const MAX_PENDING = 200;
   const VERIFY_CLICK_WINDOW_MS = 800;
   const SCAN_INTERVAL_MS = 300;
+  const MAX_EVIDENCE = 2000;
 
   const ZERO_WIDTH_RE = new RegExp("[\\u200B-\\u200D\\uFEFF]", "g");
 
@@ -134,9 +136,10 @@
 
   // ---- scoring --------------------------------------------------------------
 
-  function addScore(label, weight) {
+  function addScore(label, weight, evidence) {
     if (matched.has(label)) return;
     matched.add(label);
+    if (evidence) clipboardEvidence = evidence.slice(0, MAX_EVIDENCE);
     score += weight;
     evaluate();
   }
@@ -155,6 +158,9 @@
         url: PAGE_URL,
         score,
         indicators: Array.from(matched),
+        // Only goes out in webhook messages, and only when the Admin console
+        // sets includeClipboardText — see postWebhook.
+        clipboardText: clipboardEvidence,
       });
     } catch (e) {}
   }
@@ -240,7 +246,7 @@
     const label = "clipboard:" + method;
     if (CLIPBOARD_SUSPICIOUS.test(normalize(trimmed))) {
       // Content itself names a LOLBin/command — strongest signal, always counts.
-      addScore(label + ":keyword", WEIGHTS.clipboard);
+      addScore(label + ":keyword", WEIGHTS.clipboard, trimmed);
       return;
     }
     if (looksLikeOpaqueBlob(trimmed)) {
@@ -248,7 +254,7 @@
       // blob isn't a runnable command, and "copy API key / token" buttons
       // write exactly this — so it stays under the threshold unless the page
       // also shows paste instructions or it follows a verification click.
-      addScore(label + ":opaque", WEIGHTS.clipboardOpaqueBlob);
+      addScore(label + ":opaque", WEIGHTS.clipboardOpaqueBlob, trimmed);
     }
     if (at - lastVerifyClickAt <= VERIFY_CLICK_WINDOW_MS) {
       // No keyword — but it was written silently right
@@ -256,7 +262,7 @@
       // control. Real sites never need to copy anything for that; this is
       // the pattern used by loaders that fetch and decode the payload at
       // runtime so it never touches the DOM.
-      addScore(label + ":after-verify-click", WEIGHTS.clipboardAfterVerifyClick);
+      addScore(label + ":after-verify-click", WEIGHTS.clipboardAfterVerifyClick, trimmed);
     }
     // Otherwise: a silent write with no keyword, no blob shape, and no
     // verification-click context (e.g. a legitimate "copy install command"
